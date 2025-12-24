@@ -1,16 +1,18 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sale, SaleStatus, ServiceType, SaleItem } from '../types';
 import { Button, Input, Select } from './UIComponents';
-import { X, Layers, CheckCircle2, Circle } from 'lucide-react';
+import { X, Layers, CheckCircle2, Circle, Trash2 } from 'lucide-react';
 
 interface SalesFormProps {
   initialData?: Sale | null;
   isOpen: boolean;
   onClose: () => void;
   onSave: (sale: Sale) => void;
+  onDelete?: (id: string, name: string) => void;
 }
 
-const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onSave }) => {
+const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onSave, onDelete }) => {
   const [formData, setFormData] = useState<Partial<Sale>>({
     serviceType: ServiceType.VideoAds,
     status: SaleStatus.Lead,
@@ -24,14 +26,12 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
 
   useEffect(() => {
     if (initialData) {
-      // Migration logic for editing old records if they exist without the new structure
       let items: SaleItem[] = initialData.items || [];
       if (items.length === 0) {
-        // Fallback for migration from old data structure
         const count = initialData.quantity || 1;
-        // @ts-ignore - handling legacy isPaid
+        // @ts-ignore
         const isPaidLegacy = initialData.isPaid || false; 
-        // @ts-ignore - handling legacy itemNames
+        // @ts-ignore
         const names = initialData.itemNames || [];
         
         for (let i = 0; i < count; i++) {
@@ -50,7 +50,6 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         sentDate: initialData.sentDate ? initialData.sentDate.split('T')[0] : '',
       });
     } else {
-      // Reset form for new entry
       setFormData({
         serviceType: ServiceType.VideoAds,
         status: SaleStatus.Lead,
@@ -64,23 +63,18 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     }
   }, [initialData, isOpen]);
 
-  // Handle quantity change to resize items array
   const handleQuantityChange = (newQty: number) => {
     const qty = Math.max(1, newQty);
     setFormData(prev => {
       const currentItems = prev.items || [];
       const newItems = [...currentItems];
-      
       if (qty > currentItems.length) {
-        // Add new items
         for (let i = currentItems.length; i < qty; i++) {
           newItems.push({ name: '', isPaid: false });
         }
       } else if (qty < currentItems.length) {
-        // Remove items from the end
         newItems.length = qty;
       }
-      
       return { ...prev, quantity: qty, items: newItems };
     });
   };
@@ -115,6 +109,13 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     onClose();
   };
 
+  const handleDeleteClick = () => {
+    if (initialData && onDelete) {
+      onDelete(initialData.id, initialData.clientName);
+      onClose();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm transition-all duration-300">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-fade-in border border-slate-100">
@@ -132,8 +133,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
-          {/* Client Info Section */}
+        <form id="sales-form" onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Client Details</h3>
             <Input
@@ -145,7 +145,6 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
               placeholder="e.g. Acme Corp"
               className="bg-white border-slate-200"
             />
-            
             <Input
               label="Phone Number"
               id="phoneNumber"
@@ -158,7 +157,6 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
 
           <div className="h-px bg-slate-100 w-full" />
 
-          {/* Project Details Section */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Project Scope</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -168,7 +166,6 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                 value={formData.serviceType}
                 onChange={(e) => setFormData({ ...formData, serviceType: e.target.value as ServiceType })}
                 options={Object.values(ServiceType).map(t => ({ label: t, value: t }))}
-                className="bg-white border-slate-200"
               />
               <Select
                 label="Status"
@@ -176,11 +173,9 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value as SaleStatus })}
                 options={Object.values(SaleStatus).map(s => ({ label: s, value: s }))}
-                className="bg-white border-slate-200"
               />
             </div>
 
-            {/* Pricing and Quantity */}
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Unit Price (MAD)"
@@ -190,7 +185,6 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                 required
-                className="bg-white"
               />
               <Input
                 label="Quantity"
@@ -201,11 +195,9 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                 value={formData.quantity}
                 onChange={(e) => handleQuantityChange(Number(e.target.value))}
                 required
-                className="bg-white"
               />
             </div>
 
-            {/* Dynamic Item Names with Payment Checkbox */}
             {formData.items && formData.items.length > 0 && (
               <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
                  <div className="flex items-center justify-between text-slate-500 mb-2">
@@ -214,9 +206,9 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                       Total: {(Number(formData.price) * Number(formData.quantity)).toLocaleString()} MAD
                     </span>
                  </div>
-                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                    {formData.items.map((item, index) => (
-                     <div key={index} className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
+                     <div key={index} className="flex items-center gap-3">
                        <span className="text-xs font-medium text-slate-400 w-6">#{index + 1}</span>
                        <div className="flex-1">
                           <Input 
@@ -234,7 +226,6 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                               ? 'bg-green-50 border-green-200 text-green-700' 
                               : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
                           }`}
-                          title={item.isPaid ? "Mark as Unpaid" : "Mark as Paid"}
                        >
                          {item.isPaid ? <CheckCircle2 size={18} className="fill-current" /> : <Circle size={18} />}
                          <span className="text-xs font-medium">{item.isPaid ? 'Paid' : 'Due'}</span>
@@ -248,7 +239,6 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
 
           <div className="h-px bg-slate-100 w-full" />
 
-          {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Lead Date"
@@ -257,7 +247,6 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
               value={formData.leadDate}
               onChange={(e) => setFormData({ ...formData, leadDate: e.target.value })}
               required
-              className="bg-white border-slate-200"
             />
             <Input
               label="Sent/Delivered"
@@ -265,14 +254,29 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
               type="date"
               value={formData.sentDate}
               onChange={(e) => setFormData({ ...formData, sentDate: e.target.value })}
-              className="bg-white border-slate-200"
             />
           </div>
         </form>
 
-        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end space-x-3">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} className="shadow-lg shadow-primary-500/20">Save Project</Button>
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+          <div>
+            {initialData && (
+              <Button 
+                type="button" 
+                variant="danger" 
+                size="sm" 
+                onClick={handleDeleteClick}
+                className="opacity-80 hover:opacity-100"
+              >
+                <Trash2 size={16} className="mr-2" />
+                Remove Project
+              </Button>
+            )}
+          </div>
+          <div className="flex space-x-3">
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button form="sales-form" type="submit" className="shadow-lg shadow-primary-500/20">Save Project</Button>
+          </div>
         </div>
       </div>
     </div>

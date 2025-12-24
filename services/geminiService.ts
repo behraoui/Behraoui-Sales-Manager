@@ -2,12 +2,20 @@
 import { GoogleGenAI } from "@google/genai";
 import { Sale } from "../types";
 
-export const generateEmailDraft = async (sale: Sale, type: 'follow_up' | 'payment_reminder' | 'delivery'): Promise<string> => {
-  // Use local instance to prevent top-level process access errors
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-  
-  if (!process.env.API_KEY) return "API Key is missing. Please configure the API_KEY environment variable.";
+const getApiKey = () => {
+  try {
+    return (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : '';
+  } catch {
+    return '';
+  }
+};
 
+export const generateEmailDraft = async (sale: Sale, type: 'follow_up' | 'payment_reminder' | 'delivery'): Promise<string> => {
+  const apiKey = getApiKey();
+  if (!apiKey) return "API Key is missing. Please configure the API_KEY environment variable.";
+
+  const ai = new GoogleGenAI({ apiKey });
+  
   const total = sale.price * sale.items.length;
   const paidItems = sale.items.filter(i => i.isPaid);
   const unpaidItems = sale.items.filter(i => !i.isPaid);
@@ -44,11 +52,11 @@ export const generateEmailDraft = async (sale: Sale, type: 'follow_up' | 'paymen
 };
 
 export const analyzeSalesData = async (sales: Sale[], query: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  const apiKey = getApiKey();
+  if (!apiKey) return "API Key is missing.";
 
-  if (!process.env.API_KEY) return "API Key is missing.";
+  const ai = new GoogleGenAI({ apiKey });
 
-  // Prepare a lightweight context
   const context = sales.map(s => {
     const paidCount = s.items.filter(i => i.isPaid).length;
     return {

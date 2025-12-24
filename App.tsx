@@ -31,11 +31,9 @@ const App = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Migration logic for existing data
         return parsed.map((s: any) => {
           let items = s.items;
           if (!items || !Array.isArray(items)) {
-             // Migrate old data to new item structure
              items = [];
              const qty = s.quantity || 1;
              const names = s.itemNames || [];
@@ -66,7 +64,6 @@ const App = () => {
     localStorage.setItem('nexus_sales', JSON.stringify(sales));
   }, [sales]);
 
-  // Derived Stats
   const stats = useMemo(() => {
     let totalRevenue = 0;
     let potentialRevenue = 0;
@@ -84,7 +81,8 @@ const App = () => {
     const activeProjects = sales.filter(s => s.status === SaleStatus.InProgress).length;
     const leads = sales.filter(s => s.status === SaleStatus.Lead).length;
     
-    const revenueByService = [ServiceType.VideoAds, ServiceType.LandingPage, ServiceType.VoiceOver].map(type => {
+    const serviceTypes = [ServiceType.VideoAds, ServiceType.LandingPage, ServiceType.VoiceOver];
+    const revenueByService = serviceTypes.map(type => {
       let val = 0;
       sales.filter(s => s.serviceType === type).forEach(s => {
         const paidItemsCount = s.items.filter(i => i.isPaid).length;
@@ -98,11 +96,11 @@ const App = () => {
 
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {
-      const matchesSearch = sale.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (sale.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'All' || sale.status === statusFilter;
       
-      const paidCount = sale.items.filter(i => i.isPaid).length;
-      const totalCount = sale.items.length;
+      const paidCount = (sale.items || []).filter(i => i.isPaid).length;
+      const totalCount = (sale.items || []).length;
       
       let matchesPayment = true;
       if (paymentFilter === 'Fully Paid') {
@@ -128,8 +126,11 @@ const App = () => {
 
   const handleDelete = (id: string, name: string) => {
     if(window.confirm(`Are you sure you want to remove the project for "${name}"? This action cannot be undone.`)) {
-      setSales(sales.filter(s => s.id !== id));
+      setSales(prev => prev.filter(s => s.id !== id));
+      if (editingSale && editingSale.id === id) setEditingSale(null);
+      return true;
     }
+    return false;
   };
 
   const handleExport = () => {
@@ -499,6 +500,7 @@ const App = () => {
         onClose={() => setIsFormOpen(false)} 
         initialData={editingSale}
         onSave={handleSaveSale}
+        onDelete={handleDelete}
       />
 
       {isCopilotOpen && (
