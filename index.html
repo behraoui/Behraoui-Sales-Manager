@@ -8,6 +8,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
+      // Defining process.env before any modules load to prevent ReferenceErrors
+      window.process = { env: { API_KEY: "" } };
+      
       tailwind.config = {
         theme: {
           extend: {
@@ -53,11 +56,6 @@
         color: #0f172a;
         min-height: 100vh;
       }
-      .glass-panel {
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(8px);
-        border: 1px solid #e2e8f0;
-      }
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
         width: 6px;
@@ -74,7 +72,7 @@
         background: #94a3b8; 
       }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@19.0.0",
@@ -88,8 +86,9 @@
   }
 }
 </script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
   </body>
 </html>

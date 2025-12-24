@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Sale, SaleStatus, ServiceType, SaleItem } from './types';
 import { StatusBadge, ServiceBadge, Button, Card, Input, Select } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
@@ -69,11 +69,11 @@ const App = () => {
     let potentialRevenue = 0;
     
     sales.forEach(sale => {
-      sale.items.forEach(item => {
+      (sale.items || []).forEach(item => {
         if (item.isPaid) {
-          totalRevenue += sale.price;
+          totalRevenue += (sale.price || 0);
         } else if (sale.status !== SaleStatus.ClosedLost) {
-          potentialRevenue += sale.price;
+          potentialRevenue += (sale.price || 0);
         }
       });
     });
@@ -85,8 +85,8 @@ const App = () => {
     const revenueByService = serviceTypes.map(type => {
       let val = 0;
       sales.filter(s => s.serviceType === type).forEach(s => {
-        const paidItemsCount = s.items.filter(i => i.isPaid).length;
-        val += (paidItemsCount * s.price);
+        const paidItemsCount = (s.items || []).filter(i => i.isPaid).length;
+        val += (paidItemsCount * (s.price || 0));
       });
       return { name: type, value: val };
     });
@@ -115,23 +115,28 @@ const App = () => {
     });
   }, [sales, searchTerm, statusFilter, paymentFilter]);
 
-  const handleSaveSale = (sale: Sale) => {
-    if (editingSale) {
-      setSales(sales.map(s => s.id === sale.id ? sale : s));
-    } else {
-      setSales([sale, ...sales]);
-    }
+  const handleSaveSale = useCallback((sale: Sale) => {
+    setSales(prev => {
+      const exists = prev.find(s => s.id === sale.id);
+      if (exists) {
+        return prev.map(s => s.id === sale.id ? sale : s);
+      }
+      return [sale, ...prev];
+    });
     setEditingSale(null);
-  };
+  }, []);
 
-  const handleDelete = (id: string, name: string) => {
-    if(window.confirm(`Are you sure you want to remove the project for "${name}"? This action cannot be undone.`)) {
+  const handleDelete = useCallback((id: string, name: string) => {
+    const confirmed = window.confirm(`Are you sure you want to remove the project for "${name}"? This action cannot be undone.`);
+    if (confirmed) {
       setSales(prev => prev.filter(s => s.id !== id));
-      if (editingSale && editingSale.id === id) setEditingSale(null);
+      if (editingSale && editingSale.id === id) {
+        setEditingSale(null);
+      }
       return true;
     }
     return false;
-  };
+  }, [editingSale]);
 
   const handleExport = () => {
     const dataStr = JSON.stringify(sales, null, 2);
@@ -312,47 +317,6 @@ const App = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-           <Card className="col-span-1 lg:col-span-2 p-6 border border-slate-200">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-6">Revenue Distribution</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats.revenueByService}>
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 500}} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 500}} tickFormatter={(val) => `${val/1000}k`} dx={-10} />
-                    <Tooltip 
-                      cursor={{fill: '#f8fafc'}}
-                      contentStyle={{borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} 
-                      formatter={(val: number) => [`${val.toLocaleString()} MAD`, 'Revenue']}
-                    />
-                    <Bar dataKey="value" radius={[4, 4, 4, 4]} barSize={40}>
-                       {stats.revenueByService.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? '#0ea5e9' : index === 1 ? '#8b5cf6' : '#f97316'} />
-                        ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-           </Card>
-           
-           <Card className="col-span-1 p-6 bg-gradient-to-br from-primary-600 to-primary-700 text-white shadow-lg border-none relative overflow-hidden group flex flex-col justify-between">
-               <div>
-                  <div className="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4 backdrop-blur-sm">
-                    <Bot size={24} className="text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">Smart Assistant</h3>
-                  <p className="text-primary-100 text-sm leading-relaxed mb-6">Use Gemini AI to draft emails, analyze your sales performance, and get actionable insights instantly.</p>
-               </div>
-               <Button 
-                 onClick={toggleCopilot} 
-                 className="bg-white text-primary-700 hover:bg-primary-50 border-none w-full justify-between group-hover:shadow-lg transition-all"
-               >
-                 <span>Open Copilot</span>
-                 <Bot size={18} />
-               </Button>
-           </Card>
-        </div>
-
         <Card className="overflow-hidden border border-slate-200 shadow-sm">
           <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-white">
             <div className="relative w-full sm:w-72">
@@ -401,10 +365,10 @@ const App = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredSales.map((sale) => {
-                  const paidCount = sale.items.filter(i => i.isPaid).length;
-                  const totalCount = sale.items.length;
-                  const totalAmount = sale.price * totalCount;
-                  const paidAmount = sale.price * paidCount;
+                  const paidCount = (sale.items || []).filter(i => i.isPaid).length;
+                  const totalCount = (sale.items || []).length;
+                  const totalAmount = (sale.price || 0) * totalCount;
+                  const paidAmount = (sale.price || 0) * paidCount;
                   const isFullyPaid = paidCount === totalCount && totalCount > 0;
                   
                   return (
@@ -419,14 +383,14 @@ const App = () => {
                       <td className="px-6 py-4">
                         <ServiceBadge type={sale.serviceType} />
                         <div className="mt-1.5 flex flex-col gap-1">
-                          {sale.items.slice(0, 2).map((item, idx) => (
+                          {(sale.items || []).slice(0, 2).map((item, idx) => (
                              <div key={idx} className="flex items-center text-[11px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded w-fit">
                                 <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${item.isPaid ? 'bg-green-500' : 'bg-slate-400'}`}></span>
                                 {item.name || 'Unnamed Item'}
                              </div>
                           ))}
-                          {sale.items.length > 2 && (
-                             <span className="text-[10px] text-slate-400 pl-1">+{sale.items.length - 2} more...</span>
+                          {(sale.items || []).length > 2 && (
+                             <span className="text-[10px] text-slate-400 pl-1">+{(sale.items || []).length - 2} more...</span>
                           )}
                         </div>
                       </td>
@@ -497,7 +461,7 @@ const App = () => {
 
       <SalesForm 
         isOpen={isFormOpen} 
-        onClose={() => setIsFormOpen(false)} 
+        onClose={() => { setIsFormOpen(false); setEditingSale(null); }} 
         initialData={editingSale}
         onSave={handleSaveSale}
         onDelete={handleDelete}
