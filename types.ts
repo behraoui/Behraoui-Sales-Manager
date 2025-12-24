@@ -1,3 +1,4 @@
+
 export enum ServiceType {
   VideoAds = 'Video Ads',
   LandingPage = 'Landing Page',
@@ -10,6 +11,13 @@ export enum SaleStatus {
   InProgress = 'In Progress',
   Delivered = 'Delivered',
   ClosedLost = 'Closed Lost'
+}
+
+export interface Reminder {
+  id: string;
+  date: string; // ISO Date string (YYYY-MM-DD)
+  note: string;
+  isCompleted: boolean;
 }
 
 export interface SaleItem {
@@ -29,6 +37,7 @@ export interface Sale {
   leadDate: string; // ISO Date string
   sentDate?: string; // ISO Date string
   notes?: string;
+  reminders?: Reminder[];
 }
 
 export interface Stats {

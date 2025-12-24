@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Sale, SaleStatus, ServiceType, SaleItem } from '../types';
+import { Sale, SaleStatus, ServiceType, SaleItem, Reminder } from '../types';
 import { Button, Input, Select } from './UIComponents';
-import { X, Layers, CheckCircle2, Circle, Trash2 } from 'lucide-react';
+import { X, Layers, CheckCircle2, Circle, Trash2, Bell, PlusCircle } from 'lucide-react';
 
 interface SalesFormProps {
   initialData?: Sale | null;
@@ -22,6 +22,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     clientName: '',
     phoneNumber: '',
     leadDate: new Date().toISOString().split('T')[0],
+    reminders: [],
   });
 
   useEffect(() => {
@@ -48,6 +49,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         quantity: initialData.quantity || items.length || 1,
         leadDate: initialData.leadDate.split('T')[0],
         sentDate: initialData.sentDate ? initialData.sentDate.split('T')[0] : '',
+        reminders: initialData.reminders || [],
       });
     } else {
       setFormData({
@@ -59,6 +61,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         clientName: '',
         phoneNumber: '',
         leadDate: new Date().toISOString().split('T')[0],
+        reminders: [],
       });
     }
   }, [initialData, isOpen]);
@@ -87,6 +90,30 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     });
   };
 
+  const addReminder = () => {
+    setFormData(prev => ({
+      ...prev,
+      reminders: [
+        ...(prev.reminders || []),
+        { id: crypto.randomUUID(), date: new Date().toISOString().split('T')[0], note: '', isCompleted: false }
+      ]
+    }));
+  };
+
+  const removeReminder = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      reminders: (prev.reminders || []).filter(r => r.id !== id)
+    }));
+  };
+
+  const updateReminder = (id: string, updates: Partial<Reminder>) => {
+    setFormData(prev => ({
+      ...prev,
+      reminders: (prev.reminders || []).map(r => r.id === id ? { ...r, ...updates } : r)
+    }));
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -104,6 +131,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       items: formData.items || [],
       leadDate: formData.leadDate || new Date().toISOString(),
       sentDate: formData.sentDate || undefined,
+      reminders: formData.reminders || [],
     };
     onSave(sale);
     onClose();
@@ -235,6 +263,72 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                  </div>
               </div>
             )}
+          </div>
+
+          <div className="h-px bg-slate-100 w-full" />
+
+          {/* Reminders Section */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reminders & Alerts</h3>
+              <button 
+                type="button"
+                onClick={addReminder}
+                className="text-primary-600 hover:text-primary-700 text-xs font-bold flex items-center gap-1"
+              >
+                <PlusCircle size={14} />
+                Add Reminder
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              {(formData.reminders || []).length === 0 ? (
+                <p className="text-xs text-slate-400 italic text-center py-2 bg-slate-50 rounded-lg border border-dashed border-slate-200">No active reminders set.</p>
+              ) : (
+                (formData.reminders || []).map((reminder) => (
+                  <div key={reminder.id} className={`p-3 rounded-xl border flex flex-col gap-3 transition-colors ${reminder.isCompleted ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-200 shadow-sm'}`}>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="date" 
+                        value={reminder.date}
+                        onChange={(e) => updateReminder(reminder.id, { date: e.target.value })}
+                        className="text-xs font-semibold p-1 rounded border-slate-200 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                      />
+                      <div className="flex-1">
+                        <input 
+                          type="text"
+                          placeholder="What needs to be done?"
+                          value={reminder.note}
+                          onChange={(e) => updateReminder(reminder.id, { note: e.target.value })}
+                          className="w-full text-xs p-1 border-b border-transparent focus:border-primary-300 outline-none bg-transparent"
+                        />
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => removeReminder(reminder.id)}
+                        className="text-slate-400 hover:text-red-500 p-1"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <div className="flex justify-end">
+                       <button
+                          type="button"
+                          onClick={() => updateReminder(reminder.id, { isCompleted: !reminder.isCompleted })}
+                          className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide transition-all ${
+                            reminder.isCompleted 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          }`}
+                       >
+                         {reminder.isCompleted ? <CheckCircle2 size={12} /> : <Circle size={12} />}
+                         {reminder.isCompleted ? 'Completed' : 'Pending'}
+                       </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           <div className="h-px bg-slate-100 w-full" />
