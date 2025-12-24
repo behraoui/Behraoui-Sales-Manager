@@ -8,7 +8,6 @@ import {
   Plus, 
   Search, 
   LayoutDashboard, 
-  List, 
   DollarSign, 
   TrendingUp, 
   Users, 
@@ -17,8 +16,6 @@ import {
   Menu,
   X,
   Package,
-  CheckCircle2,
-  Clock,
   Download,
   Upload,
   Trash2
@@ -39,7 +36,7 @@ const App = () => {
              const names = s.itemNames || [];
              const isPaidLegacy = s.isPaid || false;
              for(let i=0; i<qty; i++) {
-               items.push({ name: names[i] || '', isPaid: isPaidLegacy });
+               items.push({ name: String(names[i] || ''), isPaid: !!isPaidLegacy });
              }
           }
           return { ...s, items, quantity: s.quantity || items.length || 1 };
@@ -71,9 +68,9 @@ const App = () => {
     sales.forEach(sale => {
       (sale.items || []).forEach(item => {
         if (item.isPaid) {
-          totalRevenue += (sale.price || 0);
+          totalRevenue += (Number(sale.price) || 0);
         } else if (sale.status !== SaleStatus.ClosedLost) {
-          potentialRevenue += (sale.price || 0);
+          potentialRevenue += (Number(sale.price) || 0);
         }
       });
     });
@@ -86,7 +83,7 @@ const App = () => {
       let val = 0;
       sales.filter(s => s.serviceType === type).forEach(s => {
         const paidItemsCount = (s.items || []).filter(i => i.isPaid).length;
-        val += (paidItemsCount * (s.price || 0));
+        val += (paidItemsCount * (Number(s.price) || 0));
       });
       return { name: type, value: val };
     });
@@ -127,16 +124,15 @@ const App = () => {
   }, []);
 
   const handleDelete = useCallback((id: string, name: string) => {
-    const confirmed = window.confirm(`Are you sure you want to remove the project for "${name}"? This action cannot be undone.`);
+    const confirmed = window.confirm(`Are you sure you want to remove the project for "${name}"?`);
     if (confirmed) {
       setSales(prev => prev.filter(s => s.id !== id));
-      if (editingSale && editingSale.id === id) {
-        setEditingSale(null);
-      }
+      setEditingSale(null);
+      setIsFormOpen(false);
       return true;
     }
     return false;
-  }, [editingSale]);
+  }, []);
 
   const handleExport = () => {
     const dataStr = JSON.stringify(sales, null, 2);
@@ -160,15 +156,13 @@ const App = () => {
         const content = e.target?.result as string;
         const parsed = JSON.parse(content);
         if (Array.isArray(parsed)) {
-          if(window.confirm(`Found ${parsed.length} records in backup file. This will replace your current data. Continue?`)) {
+          if(window.confirm(`Restore ${parsed.length} records?`)) {
               setSales(parsed);
               setIsSidebarOpen(false);
           }
-        } else {
-          alert("Invalid file format");
         }
       } catch (error) {
-        alert("Error parsing JSON file");
+        alert("Error parsing backup file");
       }
     };
     reader.readAsText(file);
@@ -271,29 +265,29 @@ const App = () => {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="p-5 border border-slate-200 hover:border-primary-200 shadow-sm hover:shadow-md transition-all">
+          <Card className="p-5 border border-slate-200 shadow-sm">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Revenue</p>
-                <h3 className="text-xl font-bold text-slate-800 mt-1">{stats.totalRevenue.toLocaleString()} <span className="text-xs text-slate-400">MAD</span></h3>
+                <h3 className="text-xl font-bold text-slate-800 mt-1">{stats.totalRevenue.toLocaleString()} MAD</h3>
               </div>
               <div className="p-2 bg-green-50 rounded-lg text-green-600">
                 <DollarSign size={20} />
               </div>
             </div>
           </Card>
-          <Card className="p-5 border border-slate-200 hover:border-blue-200 shadow-sm hover:shadow-md transition-all">
+          <Card className="p-5 border border-slate-200 shadow-sm">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pipeline</p>
-                <h3 className="text-xl font-bold text-slate-800 mt-1">{stats.potentialRevenue.toLocaleString()} <span className="text-xs text-slate-400">MAD</span></h3>
+                <h3 className="text-xl font-bold text-slate-800 mt-1">{stats.potentialRevenue.toLocaleString()} MAD</h3>
               </div>
               <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
                 <TrendingUp size={20} />
               </div>
             </div>
           </Card>
-          <Card className="p-5 border border-slate-200 hover:border-purple-200 shadow-sm hover:shadow-md transition-all">
+          <Card className="p-5 border border-slate-200 shadow-sm">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active</p>
@@ -304,7 +298,7 @@ const App = () => {
               </div>
             </div>
           </Card>
-          <Card className="p-5 border border-slate-200 hover:border-orange-200 shadow-sm hover:shadow-md transition-all">
+          <Card className="p-5 border border-slate-200 shadow-sm">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Leads</p>
@@ -331,22 +325,12 @@ const App = () => {
             </div>
             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <select
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 bg-white"
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none bg-white"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="All">All Statuses</option>
                 {Object.values(SaleStatus).map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 bg-white"
-                value={paymentFilter}
-                onChange={(e) => setPaymentFilter(e.target.value)}
-              >
-                <option value="All">All Payments</option>
-                <option value="Fully Paid">Fully Paid</option>
-                <option value="Partially Paid">Partially Paid</option>
-                <option value="Unpaid">Unpaid</option>
               </select>
             </div>
           </div>
@@ -359,23 +343,23 @@ const App = () => {
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Items Scope</th>
                   <th className="px-6 py-4">Payment Status</th>
-                  <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredSales.map((sale) => {
-                  const paidCount = (sale.items || []).filter(i => i.isPaid).length;
-                  const totalCount = (sale.items || []).length;
-                  const totalAmount = (sale.price || 0) * totalCount;
-                  const paidAmount = (sale.price || 0) * paidCount;
+                  const items = sale.items || [];
+                  const paidCount = items.filter(i => i.isPaid).length;
+                  const totalCount = items.length;
+                  const totalAmount = (Number(sale.price) || 0) * totalCount;
+                  const paidAmount = (Number(sale.price) || 0) * paidCount;
                   const isFullyPaid = paidCount === totalCount && totalCount > 0;
                   
                   return (
                     <tr key={sale.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-4">
-                        <div className="font-bold text-slate-800 text-sm">{sale.clientName}</div>
-                        <div className="text-xs text-slate-500">{sale.phoneNumber}</div>
+                        <div className="font-bold text-slate-800 text-sm">{String(sale.clientName || 'Unnamed')}</div>
+                        <div className="text-xs text-slate-500">{String(sale.phoneNumber || '')}</div>
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={sale.status} />
@@ -383,15 +367,12 @@ const App = () => {
                       <td className="px-6 py-4">
                         <ServiceBadge type={sale.serviceType} />
                         <div className="mt-1.5 flex flex-col gap-1">
-                          {(sale.items || []).slice(0, 2).map((item, idx) => (
+                          {items.slice(0, 2).map((item, idx) => (
                              <div key={idx} className="flex items-center text-[11px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded w-fit">
                                 <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${item.isPaid ? 'bg-green-500' : 'bg-slate-400'}`}></span>
-                                {item.name || 'Unnamed Item'}
+                                {String(item.name || 'Unnamed')}
                              </div>
                           ))}
-                          {(sale.items || []).length > 2 && (
-                             <span className="text-[10px] text-slate-400 pl-1">+{(sale.items || []).length - 2} more...</span>
-                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -407,33 +388,24 @@ const App = () => {
                               style={{ width: `${(paidCount / Math.max(totalCount, 1)) * 100}%` }}
                            ></div>
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-1 text-right">
-                          {paidCount}/{totalCount} items paid
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                        {sale.leadDate}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-1">
                           <button 
                             onClick={() => openCopilotForSale(sale)}
-                            className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors" 
-                            title="Generate Email"
+                            className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded" 
                           >
                             <Bot size={16} />
                           </button>
                           <button 
                             onClick={() => { setEditingSale(sale); setIsFormOpen(true); }}
-                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
-                            title="Edit Project"
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"
                           >
                             <MoreVertical size={16} />
                           </button>
                            <button 
                             onClick={() => handleDelete(sale.id, sale.clientName)}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Remove Project"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -442,17 +414,6 @@ const App = () => {
                     </tr>
                   );
                 })}
-                {filteredSales.length === 0 && (
-                   <tr>
-                     <td colSpan={6} className="px-6 py-16 text-center text-slate-400">
-                       <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
-                         <Package size={28} className="text-slate-300" />
-                       </div>
-                       <p className="font-medium text-slate-600">No records found</p>
-                       <p className="text-sm mt-1">Get started by adding a new project.</p>
-                     </td>
-                   </tr>
-                )}
               </tbody>
             </table>
           </div>

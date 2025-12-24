@@ -3,7 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// Redundant check to ensure process exists
+// Shim process.env for browser environments to prevent ReferenceErrors
 if (typeof window !== 'undefined') {
   (window as any).process = (window as any).process || { env: {} };
 }
