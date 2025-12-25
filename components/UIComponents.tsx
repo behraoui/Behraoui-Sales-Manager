@@ -1,5 +1,6 @@
 import React from 'react';
 import { SaleStatus, ServiceType } from '../types';
+import { translations } from '../translations';
 
 // --- Card ---
 export const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -9,7 +10,8 @@ export const Card: React.FC<{ children: React.ReactNode; className?: string }> =
 );
 
 // --- Badge ---
-export const StatusBadge: React.FC<{ status: SaleStatus }> = ({ status }) => {
+export const StatusBadge: React.FC<{ status: SaleStatus; lang?: 'en' | 'ar' }> = ({ status, lang = 'en' }) => {
+  const t = translations[lang];
   const colors = {
     [SaleStatus.Lead]: 'bg-blue-50 text-blue-700 border border-blue-100',
     [SaleStatus.Contacted]: 'bg-yellow-50 text-yellow-700 border border-yellow-100',
@@ -19,12 +21,13 @@ export const StatusBadge: React.FC<{ status: SaleStatus }> = ({ status }) => {
   };
   return (
     <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
-      {status}
+      {t.statuses[status]}
     </span>
   );
 };
 
-export const ServiceBadge: React.FC<{ type: ServiceType }> = ({ type }) => {
+export const ServiceBadge: React.FC<{ type: ServiceType; lang?: 'en' | 'ar' }> = ({ type, lang = 'en' }) => {
+  const t = translations[lang];
   const colors = {
     [ServiceType.VideoAds]: 'from-indigo-50 to-blue-50 text-indigo-700 border-indigo-100',
     [ServiceType.LandingPage]: 'from-pink-50 to-rose-50 text-pink-700 border-pink-100',
@@ -32,7 +35,7 @@ export const ServiceBadge: React.FC<{ type: ServiceType }> = ({ type }) => {
   };
   return (
     <span className={`px-2 py-1 rounded-lg text-xs font-bold border bg-gradient-to-r ${colors[type]}`}>
-      {type}
+      {t.services[type]}
     </span>
   );
 };
@@ -45,20 +48,13 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
   const baseStyle = "inline-flex items-center justify-center rounded-xl font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95";
-  
   const variants = {
-    primary: "bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-sm hover:shadow",
+    primary: "bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-sm",
     secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 focus:ring-slate-400",
-    danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm",
+    danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
     ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
   };
-
-  const sizes = {
-    sm: "px-3 py-1.5 text-xs",
-    md: "px-5 py-2.5 text-sm",
-    lg: "px-6 py-3 text-base",
-  };
-
+  const sizes = { sm: "px-3 py-1.5 text-xs", md: "px-5 py-2.5 text-sm", lg: "px-6 py-3 text-base" };
   return (
     <button className={`${baseStyle} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>
       {children}
@@ -72,13 +68,9 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input: React.FC<InputProps> = ({ label, id, className = '', ...props }) => (
-  <div className="w-full">
+  <div className="w-full text-start">
     {label && <label htmlFor={id} className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{label}</label>}
-    <input
-      id={id}
-      className={`block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm border p-2.5 outline-none transition-all ${className}`}
-      {...props}
-    />
+    <input id={id} className={`block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm border p-2.5 outline-none transition-all ${className}`} {...props} />
   </div>
 );
 
@@ -89,16 +81,10 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select: React.FC<SelectProps> = ({ label, id, options, className = '', ...props }) => (
-  <div className="w-full">
+  <div className="w-full text-start">
     {label && <label htmlFor={id} className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{label}</label>}
-    <select
-      id={id}
-      className={`block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm border p-2.5 outline-none transition-all ${className}`}
-      {...props}
-    >
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
+    <select id={id} className={`block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm border p-2.5 outline-none transition-all ${className}`} {...props}>
+      {options.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
     </select>
   </div>
 );

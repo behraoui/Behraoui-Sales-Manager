@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nexus Sales Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
       // Defining process.env before any modules load to prevent ReferenceErrors
       window.process = { env: { API_KEY: "" } };
@@ -14,7 +14,7 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Plus Jakarta Sans', 'sans-serif'],
+              sans: ['Plus Jakarta Sans', 'Cairo', 'sans-serif'],
             },
             colors: {
               primary: {
@@ -69,6 +69,9 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #94a3b8; 
+      }
+      [dir="rtl"] .font-sans {
+        font-family: 'Cairo', sans-serif;
       }
     </style>
     <script type="importmap">

@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sale, SaleStatus, ServiceType, SaleItem, Reminder } from '../types';
 import { Button, Input, Select } from './UIComponents';
-import { X, Layers, CheckCircle2, Circle, Trash2, Bell, PlusCircle } from 'lucide-react';
+import { translations } from '../translations';
+import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle } from 'lucide-react';
 
 interface SalesFormProps {
   initialData?: Sale | null;
@@ -10,9 +10,11 @@ interface SalesFormProps {
   onClose: () => void;
   onSave: (sale: Sale) => void;
   onDelete?: (id: string, name: string) => void;
+  lang?: 'en' | 'ar';
 }
 
-const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onSave, onDelete }) => {
+const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onSave, onDelete, lang = 'en' }) => {
+  const t = translations[lang];
   const [formData, setFormData] = useState<Partial<Sale>>({
     serviceType: ServiceType.VideoAds,
     status: SaleStatus.Lead,
@@ -27,29 +29,10 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
 
   useEffect(() => {
     if (initialData) {
-      let items: SaleItem[] = initialData.items || [];
-      if (items.length === 0) {
-        const count = initialData.quantity || 1;
-        // @ts-ignore
-        const isPaidLegacy = initialData.isPaid || false; 
-        // @ts-ignore
-        const names = initialData.itemNames || [];
-        
-        for (let i = 0; i < count; i++) {
-          items.push({
-            name: names[i] || '',
-            isPaid: isPaidLegacy
-          });
-        }
-      }
-
       setFormData({
         ...initialData,
-        items: items,
-        quantity: initialData.quantity || items.length || 1,
         leadDate: initialData.leadDate.split('T')[0],
         sentDate: initialData.sentDate ? initialData.sentDate.split('T')[0] : '',
-        reminders: initialData.reminders || [],
       });
     } else {
       setFormData({
@@ -69,58 +52,31 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
   const handleQuantityChange = (newQty: number) => {
     const qty = Math.max(1, newQty);
     setFormData(prev => {
-      const currentItems = prev.items || [];
-      const newItems = [...currentItems];
-      if (qty > currentItems.length) {
-        for (let i = currentItems.length; i < qty; i++) {
-          newItems.push({ name: '', isPaid: false });
-        }
-      } else if (qty < currentItems.length) {
-        newItems.length = qty;
-      }
-      return { ...prev, quantity: qty, items: newItems };
+      const items = [...(prev.items || [])];
+      if (qty > items.length) for(let i=items.length; i<qty; i++) items.push({ name: '', isPaid: false });
+      else if (qty < items.length) items.length = qty;
+      return { ...prev, quantity: qty, items };
     });
   };
 
-  const handleItemChange = (index: number, field: keyof SaleItem, value: any) => {
+  const updateItem = (index: number, field: keyof SaleItem, value: any) => {
     setFormData(prev => {
-      const newItems = [...(prev.items || [])];
-      newItems[index] = { ...newItems[index], [field]: value };
-      return { ...prev, items: newItems };
+      const items = [...(prev.items || [])];
+      items[index] = { ...items[index], [field]: value };
+      return { ...prev, items };
     });
   };
 
-  const addReminder = () => {
-    setFormData(prev => ({
-      ...prev,
-      reminders: [
-        ...(prev.reminders || []),
-        { id: crypto.randomUUID(), date: new Date().toISOString().split('T')[0], note: '', isCompleted: false }
-      ]
-    }));
-  };
-
-  const removeReminder = (id: string) => {
-    setFormData(prev => ({
-      ...prev,
-      reminders: (prev.reminders || []).filter(r => r.id !== id)
-    }));
-  };
-
-  const updateReminder = (id: string, updates: Partial<Reminder>) => {
-    setFormData(prev => ({
-      ...prev,
-      reminders: (prev.reminders || []).map(r => r.id === id ? { ...r, ...updates } : r)
-    }));
-  };
+  const addReminder = () => setFormData(prev => ({ ...prev, reminders: [...(prev.reminders || []), { id: crypto.randomUUID(), date: new Date().toISOString().split('T')[0], note: '', isCompleted: false }] }));
+  const removeReminder = (id: string) => setFormData(prev => ({ ...prev, reminders: (prev.reminders || []).filter(r => r.id !== id) }));
+  const updateReminder = (id: string, updates: Partial<Reminder>) => setFormData(prev => ({ ...prev, reminders: (prev.reminders || []).map(r => r.id === id ? { ...r, ...updates } : r) }));
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.clientName || formData.price === undefined) return;
-
-    const sale: Sale = {
+    if (!formData.clientName) return;
+    onSave({
       id: initialData?.id || crypto.randomUUID(),
       clientName: formData.clientName || '',
       phoneNumber: formData.phoneNumber || '',
@@ -132,244 +88,84 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       leadDate: formData.leadDate || new Date().toISOString(),
       sentDate: formData.sentDate || undefined,
       reminders: formData.reminders || [],
-    };
-    onSave(sale);
+    });
     onClose();
   };
 
-  const handleDeleteClick = () => {
-    if (initialData && onDelete) {
-      onDelete(initialData.id, initialData.clientName);
-      onClose();
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm transition-all duration-300">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-fade-in border border-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] border border-slate-100">
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <div className="flex items-center space-x-2">
-            <div className="bg-primary-50 p-2 rounded-lg text-primary-600">
-              <Layers size={20} />
-            </div>
-            <h2 className="text-xl font-bold text-slate-800">
-              {initialData ? 'Edit Project' : 'New Project'}
-            </h2>
+          <div className="flex items-center gap-2">
+            <div className="bg-primary-50 p-2 rounded-lg text-primary-600"><Layers size={20} /></div>
+            <h2 className="text-xl font-bold text-slate-800">{initialData ? t.editProject : t.newProject}</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors">
-            <X size={20} />
-          </button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2 rounded-full transition-colors"><X size={20} /></button>
         </div>
 
-        <form id="sales-form" onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
           <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Client Details</h3>
-            <Input
-              label="Client Name"
-              id="clientName"
-              value={formData.clientName}
-              onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-              required
-              placeholder="e.g. Acme Corp"
-              className="bg-white border-slate-200"
-            />
-            <Input
-              label="Phone Number"
-              id="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-              placeholder="+212 6..."
-              className="bg-white border-slate-200"
-            />
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.clientDetails}</h3>
+            <Input label={t.clientName} value={formData.clientName} onChange={(e) => setFormData({ ...formData, clientName: e.target.value })} required />
+            <Input label={t.phoneNumber} value={formData.phoneNumber} onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })} />
           </div>
-
+          
           <div className="h-px bg-slate-100 w-full" />
 
           <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Project Scope</h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.projectScope}</h3>
             <div className="grid grid-cols-2 gap-4">
-              <Select
-                label="Service Type"
-                id="serviceType"
-                value={formData.serviceType}
-                onChange={(e) => setFormData({ ...formData, serviceType: e.target.value as ServiceType })}
-                options={Object.values(ServiceType).map(t => ({ label: t, value: t }))}
-              />
-              <Select
-                label="Status"
-                id="status"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as SaleStatus })}
-                options={Object.values(SaleStatus).map(s => ({ label: s, value: s }))}
-              />
+              <Select label={t.serviceType} value={formData.serviceType} onChange={(e) => setFormData({ ...formData, serviceType: e.target.value as ServiceType })} options={Object.values(ServiceType).map(v => ({ label: t.services[v], value: v }))} />
+              <Select label={t.status} value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value as SaleStatus })} options={Object.values(SaleStatus).map(v => ({ label: t.statuses[v], value: v }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label={t.unitPrice} type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })} required />
+              <Input label={t.quantity} type="number" value={formData.quantity} onChange={(e) => handleQuantityChange(Number(e.target.value))} required />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Unit Price (MAD)"
-                id="price"
-                type="number"
-                min="0"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                required
-              />
-              <Input
-                label="Quantity"
-                id="quantity"
-                type="number"
-                min="1"
-                max="50"
-                value={formData.quantity}
-                onChange={(e) => handleQuantityChange(Number(e.target.value))}
-                required
-              />
-            </div>
-
-            {formData.items && formData.items.length > 0 && (
-              <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                 <div className="flex items-center justify-between text-slate-500 mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider">Items Breakdown</span>
-                    <span className="text-xs font-medium bg-white px-2 py-1 rounded border border-slate-200">
-                      Total: {(Number(formData.price) * Number(formData.quantity)).toLocaleString()} MAD
-                    </span>
-                 </div>
-                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                   {formData.items.map((item, index) => (
-                     <div key={index} className="flex items-center gap-3">
-                       <span className="text-xs font-medium text-slate-400 w-6">#{index + 1}</span>
-                       <div className="flex-1">
-                          <Input 
-                              placeholder={`Item Name #${index + 1}`}
-                              value={item.name}
-                              onChange={(e) => handleItemChange(index, 'name', e.target.value)}
-                              className="text-sm py-1.5"
-                          />
-                       </div>
-                       <button
-                          type="button"
-                          onClick={() => handleItemChange(index, 'isPaid', !item.isPaid)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
-                            item.isPaid 
-                              ? 'bg-green-50 border-green-200 text-green-700' 
-                              : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
-                          }`}
-                       >
-                         {item.isPaid ? <CheckCircle2 size={18} className="fill-current" /> : <Circle size={18} />}
-                         <span className="text-xs font-medium">{item.isPaid ? 'Paid' : 'Due'}</span>
-                       </button>
-                     </div>
-                   ))}
-                 </div>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">{t.itemsBreakdown}</p>
+              <div className="space-y-2">
+                {formData.items?.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input placeholder={t.scope} value={item.name} onChange={(e) => updateItem(i, 'name', e.target.value)} className="py-1.5" />
+                    <button type="button" onClick={() => updateItem(i, 'isPaid', !item.isPaid)} className={`p-2 rounded-lg border flex items-center gap-1.5 ${item.isPaid ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-slate-400'}`}>
+                      {item.isPaid ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                      <span className="text-[10px] font-bold">{item.isPaid ? t.completed : t.pending}</span>
+                    </button>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
           </div>
 
-          <div className="h-px bg-slate-100 w-full" />
-
-          {/* Reminders Section */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reminders & Alerts</h3>
-              <button 
-                type="button"
-                onClick={addReminder}
-                className="text-primary-600 hover:text-primary-700 text-xs font-bold flex items-center gap-1"
-              >
-                <PlusCircle size={14} />
-                Add Reminder
-              </button>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.remindersAlerts}</h3>
+              <button type="button" onClick={addReminder} className="text-primary-600 text-xs font-bold flex items-center gap-1"><PlusCircle size={14} /> {t.addReminder}</button>
             </div>
-            
-            <div className="space-y-3">
-              {(formData.reminders || []).length === 0 ? (
-                <p className="text-xs text-slate-400 italic text-center py-2 bg-slate-50 rounded-lg border border-dashed border-slate-200">No active reminders set.</p>
-              ) : (
-                (formData.reminders || []).map((reminder) => (
-                  <div key={reminder.id} className={`p-3 rounded-xl border flex flex-col gap-3 transition-colors ${reminder.isCompleted ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-200 shadow-sm'}`}>
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="date" 
-                        value={reminder.date}
-                        onChange={(e) => updateReminder(reminder.id, { date: e.target.value })}
-                        className="text-xs font-semibold p-1 rounded border-slate-200 focus:ring-primary-500 focus:border-primary-500 outline-none"
-                      />
-                      <div className="flex-1">
-                        <input 
-                          type="text"
-                          placeholder="What needs to be done?"
-                          value={reminder.note}
-                          onChange={(e) => updateReminder(reminder.id, { note: e.target.value })}
-                          className="w-full text-xs p-1 border-b border-transparent focus:border-primary-300 outline-none bg-transparent"
-                        />
-                      </div>
-                      <button 
-                        type="button" 
-                        onClick={() => removeReminder(reminder.id)}
-                        className="text-slate-400 hover:text-red-500 p-1"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                    <div className="flex justify-end">
-                       <button
-                          type="button"
-                          onClick={() => updateReminder(reminder.id, { isCompleted: !reminder.isCompleted })}
-                          className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide transition-all ${
-                            reminder.isCompleted 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          }`}
-                       >
-                         {reminder.isCompleted ? <CheckCircle2 size={12} /> : <Circle size={12} />}
-                         {reminder.isCompleted ? 'Completed' : 'Pending'}
-                       </button>
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="space-y-2">
+              {formData.reminders?.map(r => (
+                <div key={r.id} className="flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-xl">
+                  <input type="date" value={r.date} onChange={(e) => updateReminder(r.id, { date: e.target.value })} className="text-xs outline-none" />
+                  <input type="text" value={r.note} onChange={(e) => updateReminder(r.id, { note: e.target.value })} className="flex-1 text-xs outline-none" placeholder="..." />
+                  <button type="button" onClick={() => removeReminder(r.id)} className="text-red-400"><Trash2 size={14} /></button>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="h-px bg-slate-100 w-full" />
-
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Lead Date"
-              id="leadDate"
-              type="date"
-              value={formData.leadDate}
-              onChange={(e) => setFormData({ ...formData, leadDate: e.target.value })}
-              required
-            />
-            <Input
-              label="Sent/Delivered"
-              id="sentDate"
-              type="date"
-              value={formData.sentDate}
-              onChange={(e) => setFormData({ ...formData, sentDate: e.target.value })}
-            />
+            <Input label={t.leadDate} type="date" value={formData.leadDate} onChange={(e) => setFormData({ ...formData, leadDate: e.target.value })} />
+            <Input label={t.sentDelivered} type="date" value={formData.sentDate} onChange={(e) => setFormData({ ...formData, sentDate: e.target.value })} />
           </div>
         </form>
 
-        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
-          <div>
-            {initialData && (
-              <Button 
-                type="button" 
-                variant="danger" 
-                size="sm" 
-                onClick={handleDeleteClick}
-                className="opacity-80 hover:opacity-100"
-              >
-                <Trash2 size={16} className="mr-2" />
-                Remove Project
-              </Button>
-            )}
-          </div>
-          <div className="flex space-x-3">
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button form="sales-form" type="submit" className="shadow-lg shadow-primary-500/20">Save Project</Button>
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between">
+          {initialData && onDelete ? <Button variant="danger" size="sm" onClick={() => onDelete(initialData.id, initialData.clientName)}>{t.removeProject}</Button> : <div />}
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={onClose}>{t.cancel}</Button>
+            <Button onClick={handleSubmit}>{t.saveProject}</Button>
           </div>
         </div>
       </div>

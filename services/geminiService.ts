@@ -2,19 +2,10 @@
 import { GoogleGenAI } from "@google/genai";
 import { Sale } from "../types";
 
-const getApiKey = () => {
-  try {
-    return (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : '';
-  } catch {
-    return '';
-  }
-};
-
+// Helper for generating email drafts using Gemini API
 export const generateEmailDraft = async (sale: Sale, type: 'follow_up' | 'payment_reminder' | 'delivery'): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return "API Key is missing. Please configure the API_KEY environment variable.";
-
-  const ai = new GoogleGenAI({ apiKey });
+  // Always use {apiKey: process.env.API_KEY} as required by guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const total = sale.price * sale.items.length;
   const paidItems = sale.items.filter(i => i.isPaid);
@@ -40,10 +31,12 @@ export const generateEmailDraft = async (sale: Sale, type: 'follow_up' | 'paymen
   `;
 
   try {
+    // Correctly call generateContent with both model and contents in one object
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
+    // Access the text property directly on the response object
     return response.text || "Failed to generate content.";
   } catch (error) {
     console.error("Gemini API Error:", error);
@@ -51,11 +44,10 @@ export const generateEmailDraft = async (sale: Sale, type: 'follow_up' | 'paymen
   }
 };
 
+// Helper for analyzing sales data using Gemini API
 export const analyzeSalesData = async (sales: Sale[], query: string): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return "API Key is missing.";
-
-  const ai = new GoogleGenAI({ apiKey });
+  // Always use {apiKey: process.env.API_KEY} as required by guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const context = sales.map(s => {
     const paidCount = s.items.filter(i => i.isPaid).length;
@@ -83,10 +75,12 @@ export const analyzeSalesData = async (sales: Sale[], query: string): Promise<st
   `;
 
   try {
+    // Correctly call generateContent with both model and contents in one object
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
+    // Access the text property directly on the response object
     return response.text || "No insights available.";
   } catch (error) {
     console.error("Gemini API Error:", error);
