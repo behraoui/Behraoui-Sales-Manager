@@ -13,6 +13,8 @@ export enum SaleStatus {
   ClosedLost = 'Closed Lost'
 }
 
+export type ItemStatus = 'Pending' | 'In Progress' | 'Delivered';
+
 export interface Reminder {
   id: string;
   date: string; // ISO Date string (YYYY-MM-DD)
@@ -23,6 +25,7 @@ export interface Reminder {
 export interface SaleItem {
   name: string;
   isPaid: boolean;
+  status: ItemStatus;
 }
 
 export interface Sale {

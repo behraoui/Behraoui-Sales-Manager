@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Sale, SaleStatus } from './types';
 import { StatusBadge, ServiceBadge, Button, Card } from './components/UIComponents';
@@ -39,7 +38,7 @@ const App = () => {
         const parsed = JSON.parse(saved);
         return parsed.map((s: any) => ({ 
           ...s, 
-          items: s.items || [], 
+          items: (s.items || []).map((i: any) => ({ ...i, status: i.status || 'Pending' })), 
           quantity: s.quantity || (s.items?.length || 1), 
           reminders: s.reminders || [] 
         }));
@@ -58,7 +57,6 @@ const App = () => {
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [copilotSale, setCopilotSale] = useState<Sale | undefined>(undefined);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Fix: Replaced invalid character '警惕' with correct useState initialization
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -104,7 +102,12 @@ const App = () => {
         const importedSales = JSON.parse(content);
         if (Array.isArray(importedSales)) {
           if (window.confirm(language === 'ar' ? 'هل أنت متأكد؟ سيؤدي هذا إلى استبدال بياناتك الحالية.' : 'Are you sure? This will replace your current data.')) {
-            setSales(importedSales);
+            // Ensure imported data also has the new status field
+            const migratedSales = importedSales.map((s: any) => ({
+              ...s,
+              items: (s.items || []).map((i: any) => ({ ...i, status: i.status || 'Pending' }))
+            }));
+            setSales(migratedSales);
           }
         }
       } catch (err) {

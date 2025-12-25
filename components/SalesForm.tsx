@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Sale, SaleStatus, ServiceType, SaleItem, Reminder } from '../types';
+import { Sale, SaleStatus, ServiceType, SaleItem, Reminder, ItemStatus } from '../types';
 import { Button, Input, Select } from './UIComponents';
 import { translations } from '../translations';
-import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle } from 'lucide-react';
+import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle } from 'lucide-react';
 
 interface SalesFormProps {
   initialData?: Sale | null;
@@ -20,7 +20,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     status: SaleStatus.Lead,
     price: 0,
     quantity: 1,
-    items: [{ name: '', isPaid: false }],
+    items: [{ name: '', isPaid: false, status: 'Pending' }],
     clientName: '',
     phoneNumber: '',
     leadDate: new Date().toISOString().split('T')[0],
@@ -31,6 +31,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     if (initialData) {
       setFormData({
         ...initialData,
+        // Ensure items have status if loading legacy data
+        items: initialData.items.map(i => ({ ...i, status: i.status || 'Pending' })),
         leadDate: initialData.leadDate.split('T')[0],
         sentDate: initialData.sentDate ? initialData.sentDate.split('T')[0] : '',
       });
@@ -40,7 +42,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         status: SaleStatus.Lead,
         price: 0,
         quantity: 1,
-        items: [{ name: '', isPaid: false }],
+        items: [{ name: '', isPaid: false, status: 'Pending' }],
         clientName: '',
         phoneNumber: '',
         leadDate: new Date().toISOString().split('T')[0],
@@ -53,7 +55,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     const qty = Math.max(1, newQty);
     setFormData(prev => {
       const items = [...(prev.items || [])];
-      if (qty > items.length) for(let i=items.length; i<qty; i++) items.push({ name: '', isPaid: false });
+      if (qty > items.length) for(let i=items.length; i<qty; i++) items.push({ name: '', isPaid: false, status: 'Pending' });
       else if (qty < items.length) items.length = qty;
       return { ...prev, quantity: qty, items };
     });
@@ -63,6 +65,17 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     setFormData(prev => {
       const items = [...(prev.items || [])];
       items[index] = { ...items[index], [field]: value };
+      return { ...prev, items };
+    });
+  };
+
+  const cycleItemStatus = (index: number) => {
+    const statuses: ItemStatus[] = ['Pending', 'In Progress', 'Delivered'];
+    setFormData(prev => {
+      const items = [...(prev.items || [])];
+      const currentStatus = items[index].status || 'Pending';
+      const nextIndex = (statuses.indexOf(currentStatus) + 1) % statuses.length;
+      items[index] = { ...items[index], status: statuses[nextIndex] };
       return { ...prev, items };
     });
   };
@@ -90,6 +103,22 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       reminders: formData.reminders || [],
     });
     onClose();
+  };
+
+  const getItemStatusIcon = (status: ItemStatus) => {
+    switch (status) {
+      case 'In Progress': return <Loader2 size={16} className="animate-spin-slow" />;
+      case 'Delivered': return <CheckCircle size={16} />;
+      default: return <Clock size={16} />;
+    }
+  };
+
+  const getItemStatusColor = (status: ItemStatus) => {
+    switch (status) {
+      case 'In Progress': return 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100';
+      case 'Delivered': return 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100';
+      default: return 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100';
+    }
   };
 
   return (
@@ -124,15 +153,25 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
             </div>
 
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">{t.itemsBreakdown}</p>
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.itemsBreakdown}</p>
+              </div>
               <div className="space-y-2">
                 {formData.items?.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input placeholder={t.scope} value={item.name} onChange={(e) => updateItem(i, 'name', e.target.value)} className="py-1.5" />
-                    <button type="button" onClick={() => updateItem(i, 'isPaid', !item.isPaid)} className={`p-2 rounded-lg border flex items-center gap-1.5 ${item.isPaid ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-slate-400'}`}>
-                      {item.isPaid ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                      <span className="text-[10px] font-bold">{item.isPaid ? t.completed : t.pending}</span>
-                    </button>
+                  <div key={i} className="flex flex-col sm:flex-row gap-2">
+                    <Input placeholder={t.scope} value={item.name} onChange={(e) => updateItem(i, 'name', e.target.value)} className="py-2" />
+                    <div className="flex gap-2 shrink-0">
+                      {/* Status Toggle */}
+                      <button type="button" onClick={() => cycleItemStatus(i)} className={`px-3 py-2 rounded-lg border flex items-center gap-1.5 transition-all w-32 justify-center ${getItemStatusColor(item.status)}`}>
+                        {getItemStatusIcon(item.status)}
+                        <span className="text-[10px] font-bold truncate">{t.itemStatuses[item.status]}</span>
+                      </button>
+                      {/* Payment Toggle */}
+                      <button type="button" onClick={() => updateItem(i, 'isPaid', !item.isPaid)} className={`px-3 py-2 rounded-lg border flex items-center gap-1.5 transition-all w-24 justify-center ${item.isPaid ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-white text-slate-400 hover:bg-slate-50'}`}>
+                        {item.isPaid ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                        <span className="text-[10px] font-bold">{item.isPaid ? t.paid : t.unpaid}</span>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

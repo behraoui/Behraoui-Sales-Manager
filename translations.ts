@@ -18,6 +18,7 @@ export const translations = {
     fullyPaid: 'Fully Paid',
     partiallyPaid: 'Partially Paid',
     unpaid: 'Unpaid',
+    paid: 'Paid',
     client: 'Client',
     status: 'Status',
     scope: 'Items Scope',
@@ -47,6 +48,12 @@ export const translations = {
     chatInsights: 'Chat Insights',
     emailDrafter: 'Email Drafter',
     mad: 'MAD',
+    itemStatus: 'Item Status',
+    itemStatuses: {
+      Pending: 'Pending',
+      'In Progress': 'In Progress',
+      Delivered: 'Delivered'
+    },
     statuses: {
       [SaleStatus.Lead]: 'Lead',
       [SaleStatus.Contacted]: 'Contacted',
@@ -77,6 +84,7 @@ export const translations = {
     fullyPaid: 'مدفوع بالكامل',
     partiallyPaid: 'مدفوع جزئياً',
     unpaid: 'غير مدفوع',
+    paid: 'مدفوع',
     client: 'العميل',
     status: 'الحالة',
     scope: 'نطاق العناصر',
@@ -106,6 +114,12 @@ export const translations = {
     chatInsights: 'دردشة الرؤى',
     emailDrafter: 'مسودة البريد',
     mad: 'درهم',
+    itemStatus: 'حالة العنصر',
+    itemStatuses: {
+      Pending: 'قيد الانتظار',
+      'In Progress': 'قيد العمل',
+      Delivered: 'تم التسليم'
+    },
     statuses: {
       [SaleStatus.Lead]: 'عميل محتمل',
       [SaleStatus.Contacted]: 'تم التواصل',
