@@ -12,6 +12,7 @@ export const translations = {
     pipeline: 'Pipeline',
     active: 'Active',
     leads: 'Leads',
+    scammers: 'Scammers',
     searchPlaceholder: 'Search projects...',
     allStatuses: 'All Statuses',
     allPayments: 'All Payments',
@@ -68,6 +69,7 @@ export const translations = {
       [SaleStatus.InProgress]: 'In Progress',
       [SaleStatus.Delivered]: 'Delivered',
       [SaleStatus.ClosedLost]: 'Closed Lost',
+      [SaleStatus.Scammer]: 'Scammer'
     },
     services: {
       [ServiceType.VideoAds]: 'Video Ads',
@@ -86,6 +88,7 @@ export const translations = {
     pipeline: 'المشاريع المتوقعة',
     active: 'نشط',
     leads: 'عملاء محتملون',
+    scammers: 'المحتالون',
     searchPlaceholder: 'البحث في المشاريع...',
     allStatuses: 'كل الحالات',
     allPayments: 'كل الدفعات',
@@ -142,6 +145,7 @@ export const translations = {
       [SaleStatus.InProgress]: 'قيد العمل',
       [SaleStatus.Delivered]: 'تم التسليم',
       [SaleStatus.ClosedLost]: 'مغلق/خسارة',
+      [SaleStatus.Scammer]: 'محتال'
     },
     services: {
       [ServiceType.VideoAds]: 'إعلانات فيديو',

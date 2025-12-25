@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Sale, SaleStatus } from './types';
-import { StatusBadge, ServiceBadge, Button, Card } from './components/UIComponents';
+import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
 import Copilot from './components/Copilot';
 import LoginPage from './components/LoginPage';
@@ -23,7 +23,8 @@ import {
   AlertCircle,
   Clock,
   Languages,
-  LogOut
+  LogOut,
+  ShieldAlert
 } from 'lucide-react';
 
 const App = () => {
@@ -156,14 +157,15 @@ const App = () => {
     sales.forEach(sale => {
       (sale.items || []).forEach(item => {
         if (item.isPaid) totalRevenue += (Number(sale.price) || 0);
-        else if (sale.status !== SaleStatus.ClosedLost) potentialRevenue += (Number(sale.price) || 0);
+        else if (sale.status !== SaleStatus.ClosedLost && sale.status !== SaleStatus.Scammer) potentialRevenue += (Number(sale.price) || 0);
       });
     });
     return { 
       totalRevenue, 
       potentialRevenue, 
       activeProjects: sales.filter(s => s.status === SaleStatus.InProgress).length, 
-      leads: sales.filter(s => s.status === SaleStatus.Lead).length 
+      leads: sales.filter(s => s.status === SaleStatus.Lead).length,
+      scammers: sales.filter(s => s.status === SaleStatus.Scammer).length
     };
   }, [sales]);
 
@@ -315,13 +317,13 @@ const App = () => {
             { label: t.revenue, value: stats.totalRevenue, icon: <DollarSign />, color: 'green' },
             { label: t.pipeline, value: stats.potentialRevenue, icon: <TrendingUp />, color: 'blue' },
             { label: t.active, value: stats.activeProjects, icon: <LayoutDashboard />, color: 'purple' },
-            { label: t.leads, value: stats.leads, icon: <Users />, color: 'orange' }
+            { label: t.scammers, value: stats.scammers, icon: <ShieldAlert />, color: 'red' }
           ].map((item, i) => (
             <Card key={i} className="p-5 border border-slate-200">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.label}</p>
-                  <h3 className="text-xl font-bold text-slate-800 mt-1">{item.value.toLocaleString()} {i < 2 ? t.mad : ''}</h3>
+                  <h3 className="text-xl font-bold text-slate-800 mt-1">{item.value.toLocaleString()} {i === 0 ? t.mad : ''}</h3>
                 </div>
                 <div className={`p-2 bg-${item.color}-50 rounded-lg text-${item.color}-600`}>{item.icon}</div>
               </div>
@@ -372,12 +374,9 @@ const App = () => {
                       <td className="px-6 py-4"><StatusBadge status={sale.status} lang={language} /></td>
                       <td className="px-6 py-4"><ServiceBadge type={sale.serviceType} lang={language} /></td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-bold">{(sale.price * paidCount).toLocaleString()} {t.mad}</span>
-                          <span className="text-xs text-slate-400">/ {(sale.price * totalCount).toLocaleString()}</span>
-                        </div>
-                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                          <div className={`h-full rounded-full bg-primary-500`} style={{ width: `${(paidCount / Math.max(totalCount, 1)) * 100}%` }}></div>
+                        <PaymentStatusBadge paidCount={paidCount} totalCount={totalCount} lang={language} />
+                        <div className="mt-2 text-xs text-slate-500">
+                          {(sale.price * paidCount).toLocaleString()} / {(sale.price * totalCount).toLocaleString()} {t.mad}
                         </div>
                       </td>
                       <td className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>

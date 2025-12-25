@@ -18,6 +18,7 @@ export const StatusBadge: React.FC<{ status: SaleStatus; lang?: 'en' | 'ar' }> =
     [SaleStatus.InProgress]: 'bg-purple-50 text-purple-700 border border-purple-100',
     [SaleStatus.Delivered]: 'bg-green-50 text-green-700 border border-green-100',
     [SaleStatus.ClosedLost]: 'bg-slate-100 text-slate-500 border border-slate-200',
+    [SaleStatus.Scammer]: 'bg-red-950 text-red-200 border border-red-900',
   };
   return (
     <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
@@ -36,6 +37,34 @@ export const ServiceBadge: React.FC<{ type: ServiceType; lang?: 'en' | 'ar' }> =
   return (
     <span className={`px-2 py-1 rounded-lg text-xs font-bold border bg-gradient-to-r ${colors[type]}`}>
       {t.services[type]}
+    </span>
+  );
+};
+
+export const PaymentStatusBadge: React.FC<{ paidCount: number; totalCount: number; lang?: 'en' | 'ar' }> = ({ paidCount, totalCount, lang = 'en' }) => {
+  const t = translations[lang];
+  
+  if (totalCount === 0) {
+     return <span className="text-slate-400 text-[10px] font-bold uppercase">-</span>;
+  }
+
+  let statusText = '';
+  let colorClass = '';
+
+  if (paidCount === totalCount) {
+    statusText = t.fullyPaid;
+    colorClass = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+  } else if (paidCount === 0) {
+    statusText = t.unpaid;
+    colorClass = 'bg-red-50 text-red-700 border-red-100';
+  } else {
+    statusText = t.partiallyPaid;
+    colorClass = 'bg-amber-50 text-amber-700 border-amber-100';
+  }
+
+  return (
+    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${colorClass}`}>
+      {statusText}
     </span>
   );
 };

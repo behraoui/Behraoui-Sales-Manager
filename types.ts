@@ -10,7 +10,8 @@ export enum SaleStatus {
   Contacted = 'Contacted',
   InProgress = 'In Progress',
   Delivered = 'Delivered',
-  ClosedLost = 'Closed Lost'
+  ClosedLost = 'Closed Lost',
+  Scammer = 'Scammer'
 }
 
 export type ItemStatus = 'Pending' | 'In Progress' | 'Delivered';
