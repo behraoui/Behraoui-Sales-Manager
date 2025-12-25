@@ -3,6 +3,7 @@ import { Sale, SaleStatus } from './types';
 import { StatusBadge, ServiceBadge, Button, Card } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
 import Copilot from './components/Copilot';
+import LoginPage from './components/LoginPage';
 import { translations } from './translations';
 import { 
   Plus, 
@@ -21,10 +22,15 @@ import {
   Bell,
   AlertCircle,
   Clock,
-  Languages
+  Languages,
+  LogOut
 } from 'lucide-react';
 
 const App = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('nexus_auth') === 'true';
+  });
+
   const [language, setLanguage] = useState<'en' | 'ar'>(() => {
     return (localStorage.getItem('nexus_lang') as 'en' | 'ar') || 'en';
   });
@@ -80,6 +86,18 @@ const App = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleLogin = () => {
+    localStorage.setItem('nexus_auth', 'true');
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    if (window.confirm(language === 'ar' ? 'هل أنت متأكد أنك تريد تسجيل الخروج؟' : 'Are you sure you want to logout?')) {
+      localStorage.removeItem('nexus_auth');
+      setIsAuthenticated(false);
+    }
+  };
 
   const handleExport = () => {
     const dataStr = JSON.stringify(sales, null, 2);
@@ -180,6 +198,10 @@ const App = () => {
     return false;
   };
 
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={handleLogin} lang={language} />;
+  }
+
   return (
     <div className={`min-h-screen flex bg-slate-50 text-slate-800 font-sans relative overflow-x-hidden ${language === 'ar' ? 'font-arabic' : ''}`}>
       <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
@@ -223,6 +245,13 @@ const App = () => {
             <button onClick={() => setLanguage(l => l === 'en' ? 'ar' : 'en')} className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-800">
               <Languages size={20} />
               <span>{language === 'en' ? 'العربية' : 'English'}</span>
+            </button>
+          </div>
+
+          <div className="pt-2 mt-4 border-t border-slate-100">
+             <button onClick={handleLogout} className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl hover:bg-red-50 transition-all text-slate-500 hover:text-red-600">
+              <LogOut size={20} />
+              <span>{t.logout}</span>
             </button>
           </div>
         </nav>
