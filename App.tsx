@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Sale, SaleStatus, ServiceType, SaleItem, Reminder } from './types';
+
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Sale, SaleStatus } from './types';
 import { StatusBadge, ServiceBadge, Button, Card } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
 import Copilot from './components/Copilot';
@@ -19,7 +20,6 @@ import {
   Upload,
   Trash2,
   Bell,
-  Calendar,
   AlertCircle,
   Clock,
   Languages
@@ -37,7 +37,12 @@ const App = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return parsed.map((s: any) => ({ ...s, items: s.items || [], quantity: s.quantity || (s.items?.length || 1), reminders: s.reminders || [] }));
+        return parsed.map((s: any) => ({ 
+          ...s, 
+          items: s.items || [], 
+          quantity: s.quantity || (s.items?.length || 1), 
+          reminders: s.reminders || [] 
+        }));
       } catch (e) {
         return [];
       }
@@ -53,8 +58,10 @@ const App = () => {
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [copilotSale, setCopilotSale] = useState<Sale | undefined>(undefined);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Fix: Replaced invalid character '警惕' with correct useState initialization
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     localStorage.setItem('nexus_sales', JSON.stringify(sales));
@@ -75,6 +82,38 @@ const App = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleExport = () => {
+    const dataStr = JSON.stringify(sales, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `nexus-backup-${new Date().toISOString().split('T')[0]}.json`;
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const importedSales = JSON.parse(content);
+        if (Array.isArray(importedSales)) {
+          if (window.confirm(language === 'ar' ? 'هل أنت متأكد؟ سيؤدي هذا إلى استبدال بياناتك الحالية.' : 'Are you sure? This will replace your current data.')) {
+            setSales(importedSales);
+          }
+        }
+      } catch (err) {
+        alert(language === 'ar' ? 'ملف غير صالح' : 'Invalid file format');
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const activeReminders = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -99,7 +138,12 @@ const App = () => {
         else if (sale.status !== SaleStatus.ClosedLost) potentialRevenue += (Number(sale.price) || 0);
       });
     });
-    return { totalRevenue, potentialRevenue, activeProjects: sales.filter(s => s.status === SaleStatus.InProgress).length, leads: sales.filter(s => s.status === SaleStatus.Lead).length };
+    return { 
+      totalRevenue, 
+      potentialRevenue, 
+      activeProjects: sales.filter(s => s.status === SaleStatus.InProgress).length, 
+      leads: sales.filter(s => s.status === SaleStatus.Lead).length 
+    };
   }, [sales]);
 
   const filteredSales = useMemo(() => {
@@ -135,6 +179,8 @@ const App = () => {
 
   return (
     <div className={`min-h-screen flex bg-slate-50 text-slate-800 font-sans relative overflow-x-hidden ${language === 'ar' ? 'font-arabic' : ''}`}>
+      <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
+      
       {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />}
 
       <aside className={`
@@ -163,6 +209,14 @@ const App = () => {
           
           <div className="pt-6 mt-4 border-t border-slate-100">
             <p className="px-4 text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">{t.backupData}</p>
+            <button onClick={handleExport} className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-800">
+              <Download size={20} />
+              <span>{t.backupData}</span>
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-800">
+              <Upload size={20} />
+              <span>{t.restoreData}</span>
+            </button>
             <button onClick={() => setLanguage(l => l === 'en' ? 'ar' : 'en')} className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-800">
               <Languages size={20} />
               <span>{language === 'en' ? 'العربية' : 'English'}</span>
