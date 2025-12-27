@@ -90,6 +90,11 @@ export const translations = {
       lastMonth: 'Last Month',
       custom: 'Custom Range'
     },
+    sortBy: 'Sort By',
+    sortOptions: {
+      dateNewest: 'Date (Newest)',
+      paymentStatus: 'Payment Status (Unpaid First)'
+    },
     analyticsOverview: 'Analytics Overview',
     revenueTrend: 'Revenue Trend',
     servicesDistribution: 'Services Distribution',
@@ -202,6 +207,11 @@ export const translations = {
       thisMonth: 'هذا الشهر',
       lastMonth: 'الشهر الماضي',
       custom: 'فترة مخصصة'
+    },
+    sortBy: 'ترتيب حسب',
+    sortOptions: {
+      dateNewest: 'التاريخ (الأحدث)',
+      paymentStatus: 'حالة الدفع (غير المدفوع أولاً)'
     },
     analyticsOverview: 'نظرة عامة على التحليلات',
     revenueTrend: 'اتجاه الإيرادات',

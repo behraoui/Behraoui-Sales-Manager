@@ -34,7 +34,8 @@ import {
   Save,
   MessageCircle,
   BarChart3,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ArrowUpDown
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -100,6 +101,7 @@ const App = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [paymentFilter, setPaymentFilter] = useState<string>('All');
+  const [sortOrder, setSortOrder] = useState<string>('dateDesc');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
@@ -415,7 +417,7 @@ const App = () => {
   const filteredClients = useMemo(() => {
     if (!activeProject) return [];
     
-    return activeProject.clients.filter(client => {
+    const result = activeProject.clients.filter(client => {
       const matchesSearch = (client.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'All' || client.status === statusFilter;
       
@@ -431,8 +433,26 @@ const App = () => {
       if (endDate) matchesDate = matchesDate && client.leadDate <= endDate;
 
       return matchesSearch && matchesStatus && matchesPayment && matchesDate;
-    }).sort((a, b) => new Date(b.leadDate).getTime() - new Date(a.leadDate).getTime());
-  }, [activeProject, searchTerm, statusFilter, paymentFilter, startDate, endDate]);
+    });
+
+    // Sorting Logic
+    return result.sort((a, b) => {
+      if (sortOrder === 'paymentStatus') {
+         const getScore = (client: Sale) => {
+            const total = client.items.length;
+            if (total === 0) return 0;
+            const paid = client.items.filter(i => i.isPaid).length;
+            if (paid === 0) return 1; // Unpaid (Priority)
+            if (paid < total) return 2; // Partial
+            return 3; // Fully Paid
+         };
+         const diff = getScore(a) - getScore(b);
+         if (diff !== 0) return diff;
+      }
+      // Default: Date Descending
+      return new Date(b.leadDate).getTime() - new Date(a.leadDate).getTime();
+    });
+  }, [activeProject, searchTerm, statusFilter, paymentFilter, startDate, endDate, sortOrder]);
 
   const filteredProjects = useMemo(() => {
       if (activeProjectId) return []; 
@@ -895,6 +915,11 @@ const App = () => {
                             <span className="text-slate-300">-</span>
                             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-sm outline-none w-32" placeholder={t.endDate} />
                         </div>
+
+                        <select className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+                            <option value="dateDesc">{t.sortOptions.dateNewest}</option>
+                            <option value="paymentStatus">{t.sortOptions.paymentStatus}</option>
+                        </select>
 
                         <select className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                             <option value="All">{t.allStatuses}</option>
