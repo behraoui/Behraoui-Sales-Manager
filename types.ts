@@ -29,6 +29,7 @@ export interface SaleItem {
   status: ItemStatus;
 }
 
+// 'Sale' now represents a Client/Job within a Project
 export interface Sale {
   id: string;
   clientName: string;
@@ -42,6 +43,14 @@ export interface Sale {
   sentDate?: string; // ISO Date string
   notes?: string;
   reminders?: Reminder[];
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  createdAt: string; // ISO Date
+  description?: string;
+  clients: Sale[];
 }
 
 export interface Stats {
