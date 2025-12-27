@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Sale, SaleStatus, Project } from './types';
-import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge, Input } from './components/UIComponents';
+import { Sale, SaleStatus, Project, ServiceType } from './types';
+import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge, Input, Select } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
 import Copilot from './components/Copilot';
 import LoginPage from './components/LoginPage';
@@ -32,8 +32,15 @@ import {
   ArrowRight,
   Edit2,
   Save,
-  MessageCircle
+  MessageCircle,
+  BarChart3,
+  FileSpreadsheet
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+
+const COLORS = ['#0ea5e9', '#ec4899', '#f97316', '#10b981', '#6366f1'];
+
+type TimeRange = 'all' | 'today' | 'yesterday' | 'last7Days' | 'thisMonth' | 'lastMonth' | 'custom';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -77,9 +84,17 @@ const App = () => {
     return [];
   });
 
-  // Active Project (if null, show dashboard)
+  // Navigation State
+  const [currentView, setCurrentView] = useState<'dashboard' | 'analytics'>('dashboard');
+  
+  // Active Project (if null, show dashboard grid)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [projects, activeProjectId]);
+
+  // Analytics Filters
+  const [timeRange, setTimeRange] = useState<TimeRange>('thisMonth');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
 
   // UI States
   const [searchTerm, setSearchTerm] = useState('');
@@ -220,7 +235,134 @@ const App = () => {
     }
   };
 
-  // Stats Logic (Aggregated)
+  // --- ANALYTICS LOGIC ---
+  const getDateRange = (range: TimeRange) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (range) {
+      case 'today': return { start: today, end: new Date(today.getTime() + 86400000) };
+      case 'yesterday': {
+        const yest = new Date(today);
+        yest.setDate(yest.getDate() - 1);
+        return { start: yest, end: today };
+      }
+      case 'last7Days': {
+        const start = new Date(today);
+        start.setDate(start.getDate() - 7);
+        return { start, end: new Date(now) };
+      }
+      case 'thisMonth': return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now) };
+      case 'lastMonth': {
+        const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const end = new Date(now.getFullYear(), now.getMonth(), 0);
+        return { start, end };
+      }
+      case 'custom': {
+        return { 
+          start: customStart ? new Date(customStart) : new Date(0), 
+          end: customEnd ? new Date(customEnd) : new Date() 
+        };
+      }
+      case 'all': return { start: new Date(0), end: new Date() };
+      default: return { start: new Date(0), end: new Date() };
+    }
+  };
+
+  const analyticsData = useMemo(() => {
+    const { start, end } = getDateRange(timeRange);
+    
+    // Flatten all clients
+    let allClients: { client: Sale; projectName: string }[] = [];
+    projects.forEach(p => {
+      p.clients.forEach(c => {
+        allClients.push({ client: c, projectName: p.name });
+      });
+    });
+
+    // Filter by date
+    const filtered = allClients.filter(item => {
+      const d = new Date(item.client.leadDate);
+      return d >= start && d <= end;
+    });
+
+    // Calculate Stats
+    let totalRevenue = 0;
+    let leads = 0;
+    let sales = 0;
+    
+    // For Charts
+    const serviceDistribution: Record<string, number> = {};
+    const revenueByDate: Record<string, number> = {};
+
+    filtered.forEach(({ client }) => {
+      const isPaid = (client.items || []).every(i => i.isPaid);
+      const revenue = (client.items || []).filter(i => i.isPaid).length * client.price;
+      
+      totalRevenue += revenue;
+      if (client.status === SaleStatus.Lead) leads++;
+      if (client.status === SaleStatus.Delivered || client.status === SaleStatus.InProgress) sales++;
+
+      // Service Dist
+      serviceDistribution[client.serviceType] = (serviceDistribution[client.serviceType] || 0) + 1;
+
+      // Revenue Trend
+      const dateKey = client.leadDate.split('T')[0];
+      revenueByDate[dateKey] = (revenueByDate[dateKey] || 0) + revenue;
+    });
+
+    const pieData = Object.entries(serviceDistribution).map(([name, value]) => ({ name: t.services[name as ServiceType] || name, value }));
+    const barData = Object.entries(revenueByDate)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, amount]) => ({ date, amount }));
+
+    return {
+      filteredClients: filtered,
+      totalRevenue,
+      leads,
+      sales,
+      conversionRate: (sales + leads) > 0 ? ((sales / (sales + leads)) * 100).toFixed(1) : '0',
+      pieData,
+      barData
+    };
+  }, [projects, timeRange, customStart, customEnd, language]);
+
+  const handleExportCSV = () => {
+    const { filteredClients } = analyticsData;
+    if (filteredClients.length === 0) return;
+
+    // Create CSV Header
+    const headers = ['Project Name', 'Client Name', 'Phone', 'Service', 'Status', 'Date', 'Total Price (MAD)', 'Paid Amount (MAD)', 'Payment Status'];
+    
+    // Map Rows
+    const rows = filteredClients.map(({ client, projectName }) => {
+      const total = client.price * client.items.length;
+      const paid = client.items.filter(i => i.isPaid).length * client.price;
+      const paymentStatus = paid === total ? 'Paid' : paid === 0 ? 'Unpaid' : 'Partial';
+      
+      return [
+        projectName,
+        client.clientName,
+        client.phoneNumber,
+        t.services[client.serviceType],
+        t.statuses[client.status],
+        client.leadDate.split('T')[0],
+        total,
+        paid,
+        paymentStatus
+      ].map(field => `"${field}"`).join(','); // Quote fields to handle commas
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\n'); // Add BOM for Excel UTF-8
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `nexus_analytics_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.click();
+  };
+
+  // Dashboard Stats Logic (Aggregated - Global)
   const globalStats = useMemo(() => {
     let totalRevenue = 0;
     let potentialRevenue = 0;
@@ -230,8 +372,6 @@ const App = () => {
 
     projects.forEach(project => {
         project.clients.forEach(client => {
-            const isPaid = (client.items || []).every(i => i.isPaid);
-             
             // Revenue Calculation
             (client.items || []).forEach(item => {
                 if(item.isPaid) totalRevenue += client.price;
@@ -271,7 +411,7 @@ const App = () => {
     return allReminders.sort((a, b) => a.reminder.date.localeCompare(b.reminder.date));
   }, [projects]);
 
-  // View Logic
+  // View Logic (Projects)
   const filteredClients = useMemo(() => {
     if (!activeProject) return [];
     
@@ -295,7 +435,7 @@ const App = () => {
   }, [activeProject, searchTerm, statusFilter, paymentFilter, startDate, endDate]);
 
   const filteredProjects = useMemo(() => {
-      if (activeProjectId) return []; // Not searching projects when inside one
+      if (activeProjectId) return []; 
       return projects.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [projects, searchTerm, activeProjectId]);
 
@@ -401,11 +541,16 @@ const App = () => {
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600"><X size={24} /></button>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <button onClick={() => { setActiveProjectId(null); setIsSidebarOpen(false); }} className={`flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl font-medium mb-1 transition-colors ${!activeProjectId ? 'bg-primary-50 text-primary-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
+          <button onClick={() => { setCurrentView('dashboard'); setActiveProjectId(null); setIsSidebarOpen(false); }} className={`flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl font-medium mb-1 transition-colors ${currentView === 'dashboard' && !activeProjectId ? 'bg-primary-50 text-primary-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
             <LayoutDashboard size={20} />
             <span>{t.dashboard}</span>
           </button>
           
+          <button onClick={() => { setCurrentView('analytics'); setActiveProjectId(null); setIsSidebarOpen(false); }} className={`flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl font-medium mb-1 transition-colors ${currentView === 'analytics' ? 'bg-primary-50 text-primary-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
+            <BarChart3 size={20} />
+            <span>{t.analytics}</span>
+          </button>
+
           <div className="pt-6 mt-4 border-t border-slate-100">
             <p className="px-4 text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">{t.backupData}</p>
             <button onClick={handleExport} className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-800">
@@ -475,7 +620,7 @@ const App = () => {
                     </div>
                 ) : (
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{t.dashboard}</h1>
+                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{currentView === 'analytics' ? t.analytics : t.dashboard}</h1>
                         <p className="text-slate-500 text-sm">{language === 'ar' ? 'إدارة المشاريع الرقمية والإيرادات الخاصة بك.' : 'Manage your digital projects and revenue.'}</p>
                     </div>
                 )}
@@ -529,23 +674,161 @@ const App = () => {
                 </Button>
             )}
 
-            {/* Create Action Button */}
-            {activeProjectId ? (
-                <Button onClick={() => { setEditingSale(null); setIsFormOpen(true); }} className="shadow-lg shadow-primary-500/20 flex-1 md:flex-none">
-                <Plus size={18} className={`${language === 'ar' ? 'ml-2' : 'mr-2'}`} />
-                {t.newClient}
-                </Button>
-            ) : (
-                <Button onClick={() => setIsProjectModalOpen(true)} className="shadow-lg shadow-primary-500/20 flex-1 md:flex-none">
-                <FolderPlus size={18} className={`${language === 'ar' ? 'ml-2' : 'mr-2'}`} />
-                {t.createProject}
-                </Button>
+            {/* Create Action Button (Visible everywhere except Analytics) */}
+            {currentView !== 'analytics' && (
+                activeProjectId ? (
+                    <Button onClick={() => { setEditingSale(null); setIsFormOpen(true); }} className="shadow-lg shadow-primary-500/20 flex-1 md:flex-none">
+                    <Plus size={18} className={`${language === 'ar' ? 'ml-2' : 'mr-2'}`} />
+                    {t.newClient}
+                    </Button>
+                ) : (
+                    <Button onClick={() => setIsProjectModalOpen(true)} className="shadow-lg shadow-primary-500/20 flex-1 md:flex-none">
+                    <FolderPlus size={18} className={`${language === 'ar' ? 'ml-2' : 'mr-2'}`} />
+                    {t.createProject}
+                    </Button>
+                )
             )}
           </div>
         </header>
 
+        {/* --- ANALYTICS VIEW --- */}
+        {currentView === 'analytics' && (
+           <div className="animate-fade-in space-y-6">
+              {/* Date Filter & Export Bar */}
+              <Card className="p-4 border border-slate-200">
+                <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
+                  <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{t.timeRange}:</span>
+                    <div className="flex gap-1">
+                      {(['today', 'yesterday', 'last7Days', 'thisMonth', 'all'] as TimeRange[]).map(range => (
+                        <button 
+                          key={range}
+                          onClick={() => setTimeRange(range)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeRange === range ? 'bg-primary-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+                        >
+                          {t.ranges[range]}
+                        </button>
+                      ))}
+                      <button 
+                         onClick={() => setTimeRange('custom')}
+                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeRange === 'custom' ? 'bg-primary-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+                      >
+                         {t.ranges.custom}
+                      </button>
+                    </div>
+                  </div>
+
+                  {timeRange === 'custom' && (
+                     <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                        <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="bg-transparent text-xs outline-none" />
+                        <span className="text-slate-300">-</span>
+                        <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="bg-transparent text-xs outline-none" />
+                     </div>
+                  )}
+
+                  <Button variant="secondary" size="sm" onClick={handleExportCSV} className="w-full lg:w-auto">
+                    <FileSpreadsheet size={16} className={language === 'ar' ? 'ml-2' : 'mr-2'} />
+                    {t.exportToExcel}
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Stats Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="p-5 border border-slate-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.revenue}</p>
+                      <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.totalRevenue.toLocaleString()} {t.mad}</h3>
+                    </div>
+                    <div className="p-2 bg-green-50 rounded-lg text-green-600"><DollarSign size={20} /></div>
+                  </div>
+                </Card>
+                <Card className="p-5 border border-slate-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.active}</p>
+                      <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.sales}</h3>
+                    </div>
+                    <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><TrendingUp size={20} /></div>
+                  </div>
+                </Card>
+                <Card className="p-5 border border-slate-200">
+                   <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.leads}</p>
+                      <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.leads}</h3>
+                    </div>
+                    <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><Users size={20} /></div>
+                  </div>
+                </Card>
+                 <Card className="p-5 border border-slate-200">
+                   <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.conversionRate}</p>
+                      <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.conversionRate}%</h3>
+                    </div>
+                    <div className="p-2 bg-amber-50 rounded-lg text-amber-600"><LayoutDashboard size={20} /></div>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Charts Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="p-6 border border-slate-200 min-h-[350px]">
+                   <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2">
+                     <BarChart3 size={16} className="text-primary-500" />
+                     {t.revenueTrend}
+                   </h3>
+                   <div className="h-[250px] w-full text-xs">
+                     <ResponsiveContainer width="100%" height="100%">
+                       <BarChart data={analyticsData.barData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                          <XAxis dataKey="date" stroke="#94a3b8" />
+                          <YAxis stroke="#94a3b8" />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            cursor={{ fill: '#f1f5f9' }}
+                          />
+                          <Bar dataKey="amount" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                       </BarChart>
+                     </ResponsiveContainer>
+                   </div>
+                </Card>
+
+                <Card className="p-6 border border-slate-200 min-h-[350px]">
+                   <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2">
+                     <FolderKanban size={16} className="text-primary-500" />
+                     {t.servicesDistribution}
+                   </h3>
+                   <div className="h-[250px] w-full text-xs flex justify-center">
+                     <ResponsiveContainer width="100%" height="100%">
+                       <PieChart>
+                          <Pie
+                            data={analyticsData.pieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {analyticsData.pieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Legend verticalAlign="bottom" height={36} />
+                       </PieChart>
+                     </ResponsiveContainer>
+                   </div>
+                </Card>
+              </div>
+           </div>
+        )}
+
         {/* --- DASHBOARD VIEW (NO ACTIVE PROJECT) --- */}
-        {!activeProjectId && (
+        {currentView === 'dashboard' && !activeProjectId && (
             <div className="animate-fade-in">
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

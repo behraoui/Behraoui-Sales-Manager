@@ -4,6 +4,7 @@ export const translations = {
   en: {
     dashboard: 'Dashboard',
     projects: 'Projects',
+    analytics: 'Analytics',
     aiAssistant: 'AI Assistant',
     backupData: 'Backup Data',
     restoreData: 'Restore Data',
@@ -78,6 +79,21 @@ export const translations = {
     save: 'Save',
     whatsapp: 'WhatsApp',
     message: 'Message',
+    exportToExcel: 'Export to Excel/Sheets',
+    timeRange: 'Time Range',
+    ranges: {
+      all: 'All Time',
+      today: 'Today',
+      yesterday: 'Yesterday',
+      last7Days: 'Last 7 Days',
+      thisMonth: 'This Month',
+      lastMonth: 'Last Month',
+      custom: 'Custom Range'
+    },
+    analyticsOverview: 'Analytics Overview',
+    revenueTrend: 'Revenue Trend',
+    servicesDistribution: 'Services Distribution',
+    conversionRate: 'Conversion Rate',
     itemStatus: 'Item Status',
     itemStatuses: {
       Pending: 'Pending',
@@ -101,6 +117,7 @@ export const translations = {
   ar: {
     dashboard: 'لوحة التحكم',
     projects: 'المشاريع',
+    analytics: 'التحليلات',
     aiAssistant: 'مساعد الذكاء الاصطناعي',
     backupData: 'نسخ احتياطي',
     restoreData: 'استعادة البيانات',
@@ -175,6 +192,21 @@ export const translations = {
     save: 'حفظ',
     whatsapp: 'واتساب',
     message: 'رسالة',
+    exportToExcel: 'تصدير إلى Excel/Sheets',
+    timeRange: 'النطاق الزمني',
+    ranges: {
+      all: 'كل الوقت',
+      today: 'اليوم',
+      yesterday: 'أمس',
+      last7Days: 'آخر 7 أيام',
+      thisMonth: 'هذا الشهر',
+      lastMonth: 'الشهر الماضي',
+      custom: 'فترة مخصصة'
+    },
+    analyticsOverview: 'نظرة عامة على التحليلات',
+    revenueTrend: 'اتجاه الإيرادات',
+    servicesDistribution: 'توزيع الخدمات',
+    conversionRate: 'معدل التحويل',
     itemStatus: 'حالة العنصر',
     itemStatuses: {
       Pending: 'قيد الانتظار',
