@@ -29,7 +29,10 @@ import {
   Calendar,
   ChevronLeft,
   FolderPlus,
-  ArrowRight
+  ArrowRight,
+  Edit2,
+  Save,
+  MessageCircle
 } from 'lucide-react';
 
 const App = () => {
@@ -76,7 +79,8 @@ const App = () => {
 
   // Active Project (if null, show dashboard)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  
+  const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [projects, activeProjectId]);
+
   // UI States
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
@@ -87,6 +91,10 @@ const App = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+
+  // Project Rename State
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
 
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
@@ -116,6 +124,14 @@ const App = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Update rename value when active project changes
+  useEffect(() => {
+    if (activeProject) {
+      setRenameValue(activeProject.name);
+      setIsRenaming(false);
+    }
+  }, [activeProjectId, activeProject]);
 
   // Auth Handlers
   const handleLogin = () => {
@@ -183,11 +199,24 @@ const App = () => {
     setIsProjectModalOpen(false);
   };
 
+  const handleRenameProject = () => {
+    if (!activeProjectId || !renameValue.trim()) return;
+    setProjects(prev => prev.map(p => p.id === activeProjectId ? { ...p, name: renameValue } : p));
+    setIsRenaming(false);
+  };
+
   const handleDeleteProject = (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
     if (window.confirm(t.confirmDeleteProject)) {
         setProjects(prev => prev.filter(p => p.id !== projectId));
         if (activeProjectId === projectId) setActiveProjectId(null);
+    }
+  };
+
+  const handleWhatsApp = (phone: string) => {
+    const cleanNumber = phone.replace(/[^\d+]/g, ''); // Keep digits and plus sign
+    if (cleanNumber) {
+        window.open(`https://wa.me/${cleanNumber}`, '_blank');
     }
   };
 
@@ -243,8 +272,6 @@ const App = () => {
   }, [projects]);
 
   // View Logic
-  const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [projects, activeProjectId]);
-
   const filteredClients = useMemo(() => {
     if (!activeProject) return [];
     
@@ -322,6 +349,7 @@ const App = () => {
                 <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
                     <FolderKanban size={24} />
                 </div>
+                {/* Delete Button (Card) */}
                 <button 
                     onClick={(e) => handleDeleteProject(e, project.id)}
                     className="text-slate-300 hover:text-red-500 transition-colors p-1"
@@ -421,10 +449,29 @@ const App = () => {
                          <button onClick={() => { setActiveProjectId(null); setSearchTerm(''); }} className="text-slate-400 hover:text-primary-600 transition-colors">
                              <ChevronLeft className={language === 'ar' ? 'rotate-180' : ''} />
                          </button>
-                         <div>
-                            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{activeProject?.name}</h1>
-                            <p className="text-slate-500 text-sm">{activeProject?.clients.length} {t.totalClients}</p>
-                         </div>
+                         {isRenaming ? (
+                             <div className="flex items-center gap-2">
+                                 <input 
+                                    className="text-2xl font-bold text-slate-900 bg-transparent border-b-2 border-primary-500 focus:outline-none w-64"
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    autoFocus
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleRenameProject(); }}
+                                 />
+                                 <button onClick={handleRenameProject} className="p-1 text-green-600 bg-green-50 rounded hover:bg-green-100"><Save size={18} /></button>
+                                 <button onClick={() => setIsRenaming(false)} className="p-1 text-slate-400 bg-slate-50 rounded hover:bg-slate-100"><X size={18} /></button>
+                             </div>
+                         ) : (
+                             <div>
+                                <div className="flex items-center gap-2 group">
+                                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{activeProject?.name}</h1>
+                                    <button onClick={() => setIsRenaming(true)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary-600">
+                                        <Edit2 size={16} />
+                                    </button>
+                                </div>
+                                <p className="text-slate-500 text-sm">{activeProject?.clients.length} {t.totalClients}</p>
+                             </div>
+                         )}
                     </div>
                 ) : (
                     <div>
@@ -473,6 +520,14 @@ const App = () => {
             <button onClick={() => setIsCopilotOpen(!isCopilotOpen)} className="md:hidden p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
                 <Bot size={20} className="text-slate-600" />
             </button>
+            
+            {/* Delete Project Button (Active View) */}
+            {activeProjectId && (
+                <Button variant="ghost" onClick={(e) => handleDeleteProject(e, activeProjectId)} className="text-red-500 hover:bg-red-50 hover:text-red-600 hidden md:flex">
+                    <Trash2 size={18} className={language === 'ar' ? 'ml-2' : 'mr-2'} />
+                    {t.deleteProject}
+                </Button>
+            )}
 
             {/* Create Action Button */}
             {activeProjectId ? (
@@ -597,7 +652,14 @@ const App = () => {
                             <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
                                 <td className="px-6 py-4">
                                 <div className="font-bold text-slate-800 text-sm">{client.clientName}</div>
-                                <div className="text-xs text-slate-500">{client.phoneNumber}</div>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <div className="text-xs text-slate-500">{client.phoneNumber}</div>
+                                    {client.phoneNumber && (
+                                        <button onClick={() => handleWhatsApp(client.phoneNumber)} className="text-green-500 hover:text-green-600 bg-green-50 p-1 rounded-full hover:bg-green-100 transition-colors" title={t.whatsapp}>
+                                            <MessageCircle size={12} />
+                                        </button>
+                                    )}
+                                </div>
                                 </td>
                                 <td className="px-6 py-4">
                                 <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">{client.leadDate}</span>

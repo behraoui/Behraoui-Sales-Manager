@@ -37,7 +37,7 @@ export const translations = {
     scope: 'Items Scope',
     paymentStatus: 'Payment Status',
     actions: 'Actions',
-    editProject: 'Edit Client', // Contextually this is editing a client now
+    editProject: 'Edit Client',
     removeProject: 'Remove Client',
     saveProject: 'Save',
     cancel: 'Cancel',
@@ -74,6 +74,10 @@ export const translations = {
     invalidCredentials: 'Invalid username or password.',
     recentProjects: 'Recent Projects',
     noProjectsFound: 'No projects found.',
+    renameProject: 'Rename Project',
+    save: 'Save',
+    whatsapp: 'WhatsApp',
+    message: 'Message',
     itemStatus: 'Item Status',
     itemStatuses: {
       Pending: 'Pending',
@@ -167,6 +171,10 @@ export const translations = {
     invalidCredentials: 'اسم المستخدم أو كلمة المرور غير صحيحة.',
     recentProjects: 'المشاريع الأخيرة',
     noProjectsFound: 'لا توجد مشاريع.',
+    renameProject: 'تغيير اسم المشروع',
+    save: 'حفظ',
+    whatsapp: 'واتساب',
+    message: 'رسالة',
     itemStatus: 'حالة العنصر',
     itemStatuses: {
       Pending: 'قيد الانتظار',
