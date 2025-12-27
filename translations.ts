@@ -3,6 +3,7 @@ import { SaleStatus, ServiceType } from './types';
 export const translations = {
   en: {
     dashboard: 'Dashboard',
+    projects: 'Projects',
     aiAssistant: 'AI Assistant',
     backupData: 'Backup Data',
     restoreData: 'Restore Data',
@@ -40,6 +41,9 @@ export const translations = {
     remindersAlerts: 'Reminders & Alerts',
     addReminder: 'Add Reminder',
     leadDate: 'Lead Date',
+    startDate: 'Start Date',
+    endDate: 'End Date',
+    filterByDate: 'Filter by Date',
     sentDelivered: 'Sent/Delivered',
     completed: 'Completed',
     pending: 'Pending',
@@ -57,6 +61,8 @@ export const translations = {
     enterCredentials: 'Enter your credentials to access the dashboard.',
     loginButton: 'Sign In',
     invalidCredentials: 'Invalid username or password.',
+    recentProjects: 'Recent Projects',
+    noProjectsFound: 'No projects found for this period.',
     itemStatus: 'Item Status',
     itemStatuses: {
       Pending: 'Pending',
@@ -79,6 +85,7 @@ export const translations = {
   },
   ar: {
     dashboard: 'لوحة التحكم',
+    projects: 'المشاريع',
     aiAssistant: 'مساعد الذكاء الاصطناعي',
     backupData: 'نسخ احتياطي',
     restoreData: 'استعادة البيانات',
@@ -116,6 +123,9 @@ export const translations = {
     remindersAlerts: 'التذكيرات والتنبيهات',
     addReminder: 'إضافة تذكير',
     leadDate: 'تاريخ الطلب',
+    startDate: 'تاريخ البدء',
+    endDate: 'تاريخ الانتهاء',
+    filterByDate: 'تصفية حسب التاريخ',
     sentDelivered: 'تاريخ التسليم',
     completed: 'مكتمل',
     pending: 'قيد الانتظار',
@@ -133,6 +143,8 @@ export const translations = {
     enterCredentials: 'أدخل بيانات الاعتماد الخاصة بك للوصول إلى لوحة التحكم.',
     loginButton: 'دخول',
     invalidCredentials: 'اسم المستخدم أو كلمة المرور غير صحيحة.',
+    recentProjects: 'المشاريع الأخيرة',
+    noProjectsFound: 'لا توجد مشاريع في هذه الفترة.',
     itemStatus: 'حالة العنصر',
     itemStatuses: {
       Pending: 'قيد الانتظار',

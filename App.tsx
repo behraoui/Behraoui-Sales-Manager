@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Sale, SaleStatus } from './types';
-import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge } from './components/UIComponents';
+import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge, Input } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
 import Copilot from './components/Copilot';
 import LoginPage from './components/LoginPage';
@@ -24,7 +24,9 @@ import {
   Clock,
   Languages,
   LogOut,
-  ShieldAlert
+  ShieldAlert,
+  FolderKanban,
+  Calendar
 } from 'lucide-react';
 
 const App = () => {
@@ -37,6 +39,7 @@ const App = () => {
   });
 
   const t = translations[language];
+  const [currentView, setCurrentView] = useState<'dashboard' | 'projects'>('dashboard');
 
   const [sales, setSales] = useState<Sale[]>(() => {
     const saved = localStorage.getItem('nexus_sales');
@@ -59,6 +62,9 @@ const App = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [paymentFilter, setPaymentFilter] = useState<string>('All');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
@@ -121,11 +127,10 @@ const App = () => {
         const importedSales = JSON.parse(content);
         if (Array.isArray(importedSales)) {
           if (window.confirm(language === 'ar' ? 'هل أنت متأكد؟ سيؤدي هذا إلى استبدال بياناتك الحالية.' : 'Are you sure? This will replace your current data.')) {
-            // Ensure imported data also has the new status field
             const migratedSales = importedSales.map((s: any) => ({
               ...s,
               items: (s.items || []).map((i: any) => ({ ...i, status: i.status || 'Pending' }))
-            }));
+            })) as Sale[];
             setSales(migratedSales);
           }
         }
@@ -173,15 +178,33 @@ const App = () => {
     return sales.filter(sale => {
       const matchesSearch = (sale.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'All' || sale.status === statusFilter;
+      
       const paidCount = (sale.items || []).filter(i => i.isPaid).length;
       const totalCount = (sale.items || []).length;
       let matchesPayment = paymentFilter === 'All' || 
         (paymentFilter === 'Fully Paid' && paidCount === totalCount && totalCount > 0) ||
         (paymentFilter === 'Partially Paid' && paidCount > 0 && paidCount < totalCount) ||
         (paymentFilter === 'Unpaid' && paidCount === 0);
-      return matchesSearch && matchesStatus && matchesPayment;
+      
+      let matchesDate = true;
+      if (startDate) matchesDate = matchesDate && sale.leadDate >= startDate;
+      if (endDate) matchesDate = matchesDate && sale.leadDate <= endDate;
+
+      return matchesSearch && matchesStatus && matchesPayment && matchesDate;
+    }).sort((a, b) => new Date(b.leadDate).getTime() - new Date(a.leadDate).getTime());
+  }, [sales, searchTerm, statusFilter, paymentFilter, startDate, endDate]);
+
+  // Group sales by month for the Projects view
+  const groupedSales = useMemo(() => {
+    const groups: Record<string, Sale[]> = {};
+    filteredSales.forEach(sale => {
+      const date = new Date(sale.leadDate);
+      const key = date.toLocaleString(language === 'ar' ? 'ar-MA' : 'en-US', { month: 'long', year: 'numeric' });
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(sale);
     });
-  }, [sales, searchTerm, statusFilter, paymentFilter]);
+    return groups;
+  }, [filteredSales, language]);
 
   const handleSaveSale = (sale: Sale) => {
     setSales(prev => {
@@ -199,6 +222,55 @@ const App = () => {
     }
     return false;
   };
+
+  const renderSalesTable = (data: Sale[]) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-start border-collapse">
+        <thead>
+          <tr className="bg-slate-50 text-slate-500 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
+            <th className="px-6 py-4">{t.client}</th>
+            <th className="px-6 py-4">{t.leadDate}</th>
+            <th className="px-6 py-4">{t.status}</th>
+            <th className="px-6 py-4">{t.scope}</th>
+            <th className="px-6 py-4">{t.paymentStatus}</th>
+            <th className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>{t.actions}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+          {data.map((sale) => {
+            const paidCount = (sale.items || []).filter(i => i.isPaid).length;
+            const totalCount = (sale.items || []).length;
+            return (
+              <tr key={sale.id} className="hover:bg-slate-50 transition-colors group">
+                <td className="px-6 py-4">
+                  <div className="font-bold text-slate-800 text-sm">{sale.clientName}</div>
+                  <div className="text-xs text-slate-500">{sale.phoneNumber}</div>
+                </td>
+                <td className="px-6 py-4">
+                   <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">{sale.leadDate}</span>
+                </td>
+                <td className="px-6 py-4"><StatusBadge status={sale.status} lang={language} /></td>
+                <td className="px-6 py-4"><ServiceBadge type={sale.serviceType} lang={language} /></td>
+                <td className="px-6 py-4">
+                  <PaymentStatusBadge paidCount={paidCount} totalCount={totalCount} lang={language} />
+                  <div className="mt-2 text-xs text-slate-500">
+                    {(sale.price * paidCount).toLocaleString()} / {(sale.price * totalCount).toLocaleString()} {t.mad}
+                  </div>
+                </td>
+                <td className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>
+                  <div className={`flex items-center ${language === 'ar' ? 'justify-start' : 'justify-end'} space-x-1 rtl:space-x-reverse`}>
+                    <button onClick={() => { setCopilotSale(sale); setIsCopilotOpen(true); }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded"><Bot size={16} /></button>
+                    <button onClick={() => { setEditingSale(sale); setIsFormOpen(true); }} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"><MoreVertical size={16} /></button>
+                    <button onClick={() => handleDelete(sale.id, sale.clientName)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 
   if (!isAuthenticated) {
     return <LoginPage onLogin={handleLogin} lang={language} />;
@@ -225,11 +297,15 @@ const App = () => {
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600"><X size={24} /></button>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <button className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl bg-primary-50 text-primary-700 font-medium">
+          <button onClick={() => { setCurrentView('dashboard'); setIsSidebarOpen(false); }} className={`flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl font-medium mb-1 transition-colors ${currentView === 'dashboard' ? 'bg-primary-50 text-primary-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
             <LayoutDashboard size={20} />
             <span>{t.dashboard}</span>
           </button>
-          <button onClick={() => setIsCopilotOpen(!isCopilotOpen)} className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-800">
+          <button onClick={() => { setCurrentView('projects'); setIsSidebarOpen(false); }} className={`flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl font-medium mb-1 transition-colors ${currentView === 'projects' ? 'bg-primary-50 text-primary-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
+            <FolderKanban size={20} />
+            <span>{t.projects}</span>
+          </button>
+          <button onClick={() => { setIsCopilotOpen(!isCopilotOpen); setIsSidebarOpen(false); }} className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-800">
             <Bot size={20} />
             <span>{t.aiAssistant}</span>
           </button>
@@ -270,7 +346,7 @@ const App = () => {
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 text-slate-600 hover:bg-white rounded-lg border border-slate-200"><Menu size={24} /></button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{t.dashboard}</h1>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{currentView === 'dashboard' ? t.dashboard : t.projects}</h1>
               <p className="text-slate-500 text-sm">{language === 'ar' ? 'إدارة المشاريع الرقمية والإيرادات الخاصة بك.' : 'Manage your digital projects and revenue.'}</p>
             </div>
           </div>
@@ -312,87 +388,84 @@ const App = () => {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: t.revenue, value: stats.totalRevenue, icon: <DollarSign />, color: 'green' },
-            { label: t.pipeline, value: stats.potentialRevenue, icon: <TrendingUp />, color: 'blue' },
-            { label: t.active, value: stats.activeProjects, icon: <LayoutDashboard />, color: 'purple' },
-            { label: t.scammers, value: stats.scammers, icon: <ShieldAlert />, color: 'red' }
-          ].map((item, i) => (
-            <Card key={i} className="p-5 border border-slate-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.label}</p>
-                  <h3 className="text-xl font-bold text-slate-800 mt-1">{item.value.toLocaleString()} {i === 0 ? t.mad : ''}</h3>
+        {currentView === 'dashboard' ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {[
+                { label: t.revenue, value: stats.totalRevenue, icon: <DollarSign />, color: 'green' },
+                { label: t.pipeline, value: stats.potentialRevenue, icon: <TrendingUp />, color: 'blue' },
+                { label: t.active, value: stats.activeProjects, icon: <LayoutDashboard />, color: 'purple' },
+                { label: t.scammers, value: stats.scammers, icon: <ShieldAlert />, color: 'red' }
+              ].map((item, i) => (
+                <Card key={i} className="p-5 border border-slate-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.label}</p>
+                      <h3 className="text-xl font-bold text-slate-800 mt-1">{item.value.toLocaleString()} {i === 0 ? t.mad : ''}</h3>
+                    </div>
+                    <div className={`p-2 bg-${item.color}-50 rounded-lg text-${item.color}-600`}>{item.icon}</div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+            
+            <h3 className="text-lg font-bold text-slate-800 mb-4">{t.recentProjects}</h3>
+            <Card className="overflow-hidden border border-slate-200">
+               {/* Show only top 5 recent sales on dashboard */}
+               {renderSalesTable(filteredSales.slice(0, 5))}
+            </Card>
+          </>
+        ) : (
+          <div className="space-y-6">
+            {/* Filtering Bar */}
+            <Card className="p-4 border border-slate-200">
+              <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
+                <div className="relative w-full lg:w-1/3">
+                  <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-slate-400`} size={16} />
+                  <input type="text" placeholder={t.searchPlaceholder} className={`w-full ${language === 'ar' ? 'pr-9 pl-4' : 'pl-9 pr-4'} py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white outline-none text-sm transition-all`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
-                <div className={`p-2 bg-${item.color}-50 rounded-lg text-${item.color}-600`}>{item.icon}</div>
+                
+                <div className="flex flex-wrap gap-2 w-full lg:w-auto items-center">
+                  <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                    <div className="flex items-center px-2 text-slate-400"><Calendar size={16} /></div>
+                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-sm outline-none w-32" placeholder={t.startDate} />
+                    <span className="text-slate-300">-</span>
+                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-sm outline-none w-32" placeholder={t.endDate} />
+                  </div>
+
+                  <select className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                    <option value="All">{t.allStatuses}</option>
+                    {Object.values(SaleStatus).map(s => <option key={s} value={s}>{t.statuses[s]}</option>)}
+                  </select>
+                  <select className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}>
+                    <option value="All">{t.allPayments}</option>
+                    <option value="Fully Paid">{t.fullyPaid}</option>
+                    <option value="Partially Paid">{t.partiallyPaid}</option>
+                    <option value="Unpaid">{t.unpaid}</option>
+                  </select>
+                </div>
               </div>
             </Card>
-          ))}
-        </div>
 
-        <Card className="overflow-hidden border border-slate-200">
-          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-white">
-            <div className="relative w-full sm:w-72">
-              <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-slate-400`} size={16} />
-              <input type="text" placeholder={t.searchPlaceholder} className={`w-full ${language === 'ar' ? 'pr-9 pl-4' : 'pl-9 pr-4'} py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white outline-none text-sm transition-all`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            </div>
-            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-              <select className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="All">{t.allStatuses}</option>
-                {Object.values(SaleStatus).map(s => <option key={s} value={s}>{t.statuses[s]}</option>)}
-              </select>
-              <select className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}>
-                <option value="All">{t.allPayments}</option>
-                <option value="Fully Paid">{t.fullyPaid}</option>
-                <option value="Partially Paid">{t.partiallyPaid}</option>
-                <option value="Unpaid">{t.unpaid}</option>
-              </select>
-            </div>
+            {/* Grouped Projects List */}
+            {Object.keys(groupedSales).length > 0 ? (
+              Object.entries(groupedSales).map(([dateKey, groupSales]) => (
+                <div key={dateKey} className="space-y-3">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider pl-1 border-l-4 border-primary-400 ml-1">{dateKey}</h3>
+                  <Card className="overflow-hidden border border-slate-200">
+                    {renderSalesTable(groupSales)}
+                  </Card>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
+                <FolderKanban className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                <h3 className="text-lg font-medium text-slate-900">{t.noProjectsFound}</h3>
+                <p className="text-slate-500 text-sm mt-1">{language === 'ar' ? 'حاول تعديل خيارات التصفية أو أضف مشروعًا جديدًا.' : 'Try adjusting your filters or add a new project.'}</p>
+              </div>
+            )}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-start border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
-                  <th className="px-6 py-4">{t.client}</th>
-                  <th className="px-6 py-4">{t.status}</th>
-                  <th className="px-6 py-4">{t.scope}</th>
-                  <th className="px-6 py-4">{t.paymentStatus}</th>
-                  <th className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>{t.actions}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {filteredSales.map((sale) => {
-                  const paidCount = (sale.items || []).filter(i => i.isPaid).length;
-                  const totalCount = (sale.items || []).length;
-                  return (
-                    <tr key={sale.id} className="hover:bg-slate-50 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-slate-800 text-sm">{sale.clientName}</div>
-                        <div className="text-xs text-slate-500">{sale.phoneNumber}</div>
-                      </td>
-                      <td className="px-6 py-4"><StatusBadge status={sale.status} lang={language} /></td>
-                      <td className="px-6 py-4"><ServiceBadge type={sale.serviceType} lang={language} /></td>
-                      <td className="px-6 py-4">
-                        <PaymentStatusBadge paidCount={paidCount} totalCount={totalCount} lang={language} />
-                        <div className="mt-2 text-xs text-slate-500">
-                          {(sale.price * paidCount).toLocaleString()} / {(sale.price * totalCount).toLocaleString()} {t.mad}
-                        </div>
-                      </td>
-                      <td className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>
-                        <div className={`flex items-center ${language === 'ar' ? 'justify-start' : 'justify-end'} space-x-1 rtl:space-x-reverse`}>
-                          <button onClick={() => { setCopilotSale(sale); setIsCopilotOpen(true); }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded"><Bot size={16} /></button>
-                          <button onClick={() => { setEditingSale(sale); setIsFormOpen(true); }} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"><MoreVertical size={16} /></button>
-                          <button onClick={() => handleDelete(sale.id, sale.clientName)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        )}
       </main>
 
       <SalesForm isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingSale(null); }} initialData={editingSale} onSave={handleSaveSale} onDelete={handleDelete} lang={language} />
