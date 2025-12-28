@@ -1,4 +1,4 @@
-import { SaleStatus, ServiceType } from './types';
+import { SaleStatus, ServiceType, TaskType } from './types';
 
 export const translations = {
   en: {
@@ -50,7 +50,7 @@ export const translations = {
     serviceType: 'Service Type',
     unitPrice: 'Unit Price (MAD)',
     quantity: 'Quantity',
-    itemsBreakdown: 'Items Breakdown',
+    itemsBreakdown: 'Task List & Items',
     remindersAlerts: 'Reminders & Alerts',
     addReminder: 'Add Reminder',
     leadDate: 'Lead Date',
@@ -120,6 +120,24 @@ export const translations = {
       [ServiceType.LandingPage]: 'Landing Page',
       [ServiceType.VoiceOver]: 'Voice Over',
     },
+    taskTypes: {
+      [TaskType.General]: 'General Task',
+      [TaskType.UGCMale]: 'UGC Photo (Male)',
+      [TaskType.UGCFemale]: 'UGC Photo (Female)',
+      [TaskType.ScriptWriting]: 'Script Writing',
+      [TaskType.VideoEditing]: 'Video Editing',
+      [TaskType.VoiceOver]: 'Voice Over Recording'
+    },
+    tasks: {
+      taskName: 'Task Name',
+      taskType: 'Task Type',
+      generateScript: 'Generate Script with AI',
+      scriptPlaceholder: 'Enter script or detailed instructions here...',
+      attachments: 'Attachments (Audio/PDF)',
+      upload: 'Upload',
+      download: 'Download',
+      noAttachments: 'No attachments'
+    },
     teamManagement: {
       title: 'Team Management',
       addWorker: 'Add Worker',
@@ -131,7 +149,7 @@ export const translations = {
       createUser: 'Create User',
       workers: 'Workers',
       assignTo: 'Assign To',
-      instructions: 'Team Instructions',
+      instructions: 'General Team Instructions',
       instructionsPlaceholder: 'Add specific details, links, or notes for the team...',
       noWorkers: 'No workers found. Create one in the Team tab.',
       myTasks: 'My Tasks',
@@ -189,7 +207,7 @@ export const translations = {
     serviceType: 'نوع الخدمة',
     unitPrice: 'سعر الوحدة (درهم)',
     quantity: 'الكمية',
-    itemsBreakdown: 'تفصيل العناصر',
+    itemsBreakdown: 'قائمة المهام والعناصر',
     remindersAlerts: 'التذكيرات والتنبيهات',
     addReminder: 'إضافة تذكير',
     leadDate: 'تاريخ الطلب',
@@ -259,6 +277,24 @@ export const translations = {
       [ServiceType.LandingPage]: 'صفحة هبوط',
       [ServiceType.VoiceOver]: 'تعليق صوتي',
     },
+    taskTypes: {
+      [TaskType.General]: 'مهمة عامة',
+      [TaskType.UGCMale]: 'صورة UGC (ذكر)',
+      [TaskType.UGCFemale]: 'صورة UGC (أنثى)',
+      [TaskType.ScriptWriting]: 'كتابة سيناريو',
+      [TaskType.VideoEditing]: 'مونتاج فيديو',
+      [TaskType.VoiceOver]: 'تسجيل صوتي'
+    },
+    tasks: {
+      taskName: 'اسم المهمة',
+      taskType: 'نوع المهمة',
+      generateScript: 'توليد سيناريو بالذكاء الاصطناعي',
+      scriptPlaceholder: 'أدخل السيناريو أو تعليمات مفصلة هنا...',
+      attachments: 'المرفقات (صوت/PDF)',
+      upload: 'رفع',
+      download: 'تحميل',
+      noAttachments: 'لا توجد مرفقات'
+    },
     teamManagement: {
       title: 'إدارة الفريق',
       addWorker: 'إضافة عامل',
@@ -270,7 +306,7 @@ export const translations = {
       createUser: 'إنشاء مستخدم',
       workers: 'العمال',
       assignTo: 'تعيين إلى',
-      instructions: 'تعليمات الفريق',
+      instructions: 'تعليمات عامة للفريق',
       instructionsPlaceholder: 'أضف تفاصيل محددة أو روابط أو ملاحظات للفريق...',
       noWorkers: 'لم يتم العثور على عمال. قم بإنشاء واحد في تبويب الفريق.',
       myTasks: 'مهامي',

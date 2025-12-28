@@ -31,12 +31,10 @@ export const generateEmailDraft = async (sale: Sale, type: 'follow_up' | 'paymen
   `;
 
   try {
-    // Correctly call generateContent with both model and contents in one object
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
-    // Access the text property directly on the response object
     return response.text || "Failed to generate content.";
   } catch (error) {
     console.error("Gemini API Error:", error);
@@ -46,7 +44,6 @@ export const generateEmailDraft = async (sale: Sale, type: 'follow_up' | 'paymen
 
 // Helper for analyzing sales data using Gemini API
 export const analyzeSalesData = async (sales: Sale[], query: string): Promise<string> => {
-  // Always use {apiKey: process.env.API_KEY} as required by guidelines
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const context = sales.map(s => {
@@ -75,15 +72,44 @@ export const analyzeSalesData = async (sales: Sale[], query: string): Promise<st
   `;
 
   try {
-    // Correctly call generateContent with both model and contents in one object
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
-    // Access the text property directly on the response object
     return response.text || "No insights available.";
   } catch (error) {
     console.error("Gemini API Error:", error);
     return "Error analyzing data.";
+  }
+};
+
+// Helper for generating creative scripts for tasks
+export const generateCreativeScript = async (clientName: string, serviceType: string, taskName: string, lang: 'en' | 'ar'): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+  const prompt = `
+    Act as a creative director. Write a compelling script or detailed shot list for a digital marketing task.
+    
+    Client: ${clientName}
+    Service Type: ${serviceType}
+    Specific Task: ${taskName}
+    Target Language: ${lang === 'ar' ? 'Arabic (Moroccan Dialect preferred if applicable)' : 'English'}
+
+    If it's a "Script Writing" task, provide a video script with Scene/Visual/Audio columns format (as text).
+    If it's a "UGC Photo" task, provide a creative brief for the model (outfit, pose, setting).
+    If it's "Voice Over", provide the script to be read.
+
+    Keep it professional but creative.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
+    return response.text || "Failed to generate script.";
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    return "Error generating script.";
   }
 };

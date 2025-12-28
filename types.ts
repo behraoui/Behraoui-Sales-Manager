@@ -14,6 +14,15 @@ export enum SaleStatus {
   Scammer = 'Scammer'
 }
 
+export enum TaskType {
+  General = 'General Task',
+  UGCMale = 'UGC Photo (Male)',
+  UGCFemale = 'UGC Photo (Female)',
+  ScriptWriting = 'Script Writing',
+  VideoEditing = 'Video Editing',
+  VoiceOver = 'Voice Over Recording'
+}
+
 export type ItemStatus = 'Pending' | 'In Progress' | 'Delivered';
 
 export type UserRole = 'admin' | 'worker';
@@ -34,10 +43,19 @@ export interface Reminder {
   isCompleted: boolean;
 }
 
+export interface Attachment {
+  name: string;
+  type: 'audio' | 'pdf' | 'image' | 'other';
+  data: string; // Base64 string
+}
+
 export interface SaleItem {
   name: string;
   isPaid: boolean;
   status: ItemStatus;
+  type?: TaskType;
+  description?: string; // Script or instructions
+  attachments?: Attachment[];
 }
 
 // 'Sale' now represents a Client/Job within a Project

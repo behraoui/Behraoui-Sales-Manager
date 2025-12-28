@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Project, Sale, SaleItem, ItemStatus, User } from '../types';
+import { Project, Sale, SaleItem, ItemStatus, User, TaskType } from '../types';
 import { Card, StatusBadge, ServiceBadge, Button } from './UIComponents';
 import { translations } from '../translations';
-import { CheckCircle2, Circle, Clock, Loader2, CheckCircle, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Loader2, CheckCircle, ChevronDown, ChevronUp, FileText, Download, FileAudio, Image as ImageIcon } from 'lucide-react';
 
 interface WorkerDashboardProps {
   currentUser: User;
@@ -48,6 +48,19 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects
       }
     };
 
+    const getTaskTypeBadge = (type?: TaskType) => {
+        const typeStr = type || TaskType.General;
+        const label = t.taskTypes[typeStr] || typeStr;
+        let colorClass = 'bg-slate-100 text-slate-600';
+
+        if (typeStr === TaskType.ScriptWriting) colorClass = 'bg-purple-50 text-purple-700 border-purple-100';
+        else if (typeStr === TaskType.UGCMale || typeStr === TaskType.UGCFemale) colorClass = 'bg-pink-50 text-pink-700 border-pink-100';
+        else if (typeStr === TaskType.VoiceOver) colorClass = 'bg-orange-50 text-orange-700 border-orange-100';
+        else if (typeStr === TaskType.VideoEditing) colorClass = 'bg-indigo-50 text-indigo-700 border-indigo-100';
+
+        return <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${colorClass}`}>{label}</span>;
+    };
+
   return (
     <div className="animate-fade-in p-4 md:p-8 max-w-4xl mx-auto">
       <div className="mb-8">
@@ -73,7 +86,10 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects
                     <h3 className="font-bold text-lg text-slate-800">{sale.clientName}</h3>
                     <ServiceBadge type={sale.serviceType} lang={lang} />
                   </div>
-                  <p className="text-xs text-slate-500 font-medium">{sale.projectName} • {new Date(sale.leadDate).toLocaleDateString()}</p>
+                  <p className="text-xs text-slate-500 font-medium">
+                      {sale.projectName} • {new Date(sale.leadDate).toLocaleDateString()}
+                      {sale.phoneNumber && <span className="mx-2">• {sale.phoneNumber}</span>}
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
                    <StatusBadge status={sale.status} lang={lang} />
@@ -85,7 +101,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects
               {expandedSaleId === sale.id && (
                 <div className="bg-slate-50 border-t border-slate-100 p-5 space-y-6 animate-fade-in">
                   
-                  {/* Instructions */}
+                  {/* General Instructions */}
                   {sale.teamInstructions && (
                       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                           <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -98,17 +114,49 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects
                   {/* Tasks / Items */}
                   <div>
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{t.itemsBreakdown}</h4>
-                    <div className="space-y-2">
+                    <div className="space-y-4">
                         {sale.items.map((item, idx) => (
-                            <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-                                <span className="text-sm font-medium text-slate-700">{item.name || 'Untitled Task'}</span>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); cycleStatus(sale.projectId, sale.id, idx, item.status); }}
-                                    className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 transition-all hover:opacity-80 w-full sm:w-auto justify-center ${getItemStatusColor(item.status)}`}
-                                >
-                                    {getItemStatusIcon(item.status)}
-                                    <span className="text-xs font-bold">{t.itemStatuses[item.status]}</span>
-                                </button>
+                            <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-sm font-bold text-slate-800">{item.name || 'Untitled Task'}</span>
+                                            {getTaskTypeBadge(item.type)}
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); cycleStatus(sale.projectId, sale.id, idx, item.status); }}
+                                        className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 transition-all hover:opacity-80 ${getItemStatusColor(item.status)}`}
+                                    >
+                                        {getItemStatusIcon(item.status)}
+                                        <span className="text-xs font-bold">{t.itemStatuses[item.status]}</span>
+                                    </button>
+                                </div>
+
+                                {/* Script / Description */}
+                                {item.description && (
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm text-slate-600 whitespace-pre-wrap font-mono">
+                                        {item.description}
+                                    </div>
+                                )}
+
+                                {/* Attachments */}
+                                {item.attachments && item.attachments.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        {item.attachments.map((att, attIdx) => (
+                                            <a 
+                                                key={attIdx}
+                                                href={att.data}
+                                                download={att.name}
+                                                className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs hover:bg-slate-100 transition-colors text-slate-600"
+                                            >
+                                                {att.type === 'audio' ? <FileAudio size={14} className="text-purple-500" /> : att.type === 'pdf' ? <FileText size={14} className="text-red-500" /> : <ImageIcon size={14} className="text-blue-500" />}
+                                                <span className="truncate max-w-[150px]">{att.name}</span>
+                                                <Download size={12} className="text-slate-400" />
+                                            </a>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
