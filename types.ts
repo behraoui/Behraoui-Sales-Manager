@@ -43,6 +43,26 @@ export interface Reminder {
   isCompleted: boolean;
 }
 
+// Independent notifications (e.g., Admin sending an alert to a worker)
+export interface GlobalNotification {
+  id: string;
+  targetUserId: string; // 'all', 'admin', or specific user ID
+  fromUserName: string;
+  message: string;
+  date: string;
+  isRead: boolean;
+  type: 'alert' | 'info';
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  receiverId: string; // 'admin' for messages to admin, or specific user ID
+  text: string;
+  timestamp: string;
+  read: boolean;
+}
+
 export interface Attachment {
   name: string;
   type: 'audio' | 'pdf' | 'image' | 'other';

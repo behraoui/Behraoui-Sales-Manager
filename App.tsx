@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Sale, SaleStatus, Project, ServiceType, User, UserRole, ItemStatus, Reminder } from './types';
+import { Sale, SaleStatus, Project, ServiceType, User, UserRole, ItemStatus, Reminder, GlobalNotification, ChatMessage } from './types';
 import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge, Input, Select } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
 import Copilot from './components/Copilot';
 import LoginPage from './components/LoginPage';
 import TeamManager from './components/TeamManager';
 import WorkerDashboard from './components/WorkerDashboard';
+import ChatSystem from './components/ChatSystem';
 import { translations } from './translations';
 import { 
   Plus, 
@@ -38,7 +39,8 @@ import {
   BarChart3,
   FileSpreadsheet,
   ArrowUpDown,
-  UserCog
+  UserCog,
+  Check
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -89,6 +91,19 @@ const App = () => {
     return [];
   });
 
+  // Global Notifications & Chat State
+  const [globalNotifications, setGlobalNotifications] = useState<GlobalNotification[]>(() => {
+    const saved = localStorage.getItem('nexus_notifications');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
+      const saved = localStorage.getItem('nexus_messages');
+      return saved ? JSON.parse(saved) : [];
+  });
+
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
   // Navigation State
   const [currentView, setCurrentView] = useState<View>('dashboard');
   
@@ -122,6 +137,11 @@ const App = () => {
   const [copilotSale, setCopilotSale] = useState<Sale | undefined>(undefined);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  
+  // New Notification UI State
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [selectedWorkerForNotification, setSelectedWorkerForNotification] = useState<string>('');
+
   const notificationRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -133,6 +153,14 @@ const App = () => {
   useEffect(() => {
     localStorage.setItem('nexus_users', JSON.stringify(users));
   }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem('nexus_notifications', JSON.stringify(globalNotifications));
+  }, [globalNotifications]);
+
+  useEffect(() => {
+    localStorage.setItem('nexus_messages', JSON.stringify(chatMessages));
+  }, [chatMessages]);
 
   useEffect(() => {
     if (currentUser) {
@@ -196,7 +224,7 @@ const App = () => {
 
   // Data Handlers
   const handleExport = () => {
-    const dataStr = JSON.stringify({ projects, users }, null, 2);
+    const dataStr = JSON.stringify({ projects, users, globalNotifications, chatMessages }, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     const exportFileDefaultName = `nexus-backup-${new Date().toISOString().split('T')[0]}.json`;
     const linkElement = document.createElement('a');
@@ -226,6 +254,8 @@ const App = () => {
              if (window.confirm(language === 'ar' ? 'هل أنت متأكد؟ سيؤدي هذا إلى استبدال بياناتك الحالية.' : 'Are you sure? This will replace your current data.')) {
                 setProjects(importedData.projects || []);
                 if (importedData.users) setUsers(importedData.users);
+                if (importedData.globalNotifications) setGlobalNotifications(importedData.globalNotifications);
+                if (importedData.chatMessages) setChatMessages(importedData.chatMessages);
             }
         }
       } catch (err) {
@@ -269,6 +299,56 @@ const App = () => {
     const cleanNumber = phone.replace(/[^\d+]/g, ''); // Keep digits and plus sign
     if (cleanNumber) {
         window.open(`https://wa.me/${cleanNumber}`, '_blank');
+    }
+  };
+
+  // --- NOTIFICATION & CHAT LOGIC ---
+
+  const handleSendNotification = (targetUserId: string, message: string) => {
+      const newNotification: GlobalNotification = {
+          id: crypto.randomUUID(),
+          targetUserId,
+          fromUserName: currentUser?.name || 'Admin',
+          message,
+          date: new Date().toISOString(),
+          isRead: false,
+          type: 'alert'
+      };
+      setGlobalNotifications(prev => [newNotification, ...prev]);
+      alert(t.teamManagement.notificationSent);
+      setNotificationMessage('');
+      setSelectedWorkerForNotification('');
+  };
+
+  const handleSendMessage = (receiverId: string, text: string) => {
+      const newMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          senderId: currentUser!.id,
+          receiverId,
+          text,
+          timestamp: new Date().toISOString(),
+          read: false
+      };
+      setChatMessages(prev => [...prev, newMessage]);
+  };
+
+  const handleMarkAsRead = (type: 'project' | 'global', id: string, projectId?: string, saleId?: string) => {
+    if (type === 'global') {
+        setGlobalNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } else if (type === 'project' && projectId && saleId) {
+        setProjects(prev => prev.map(p => {
+            if (p.id !== projectId) return p;
+            return {
+                ...p,
+                clients: p.clients.map(c => {
+                    if (c.id !== saleId) return c;
+                    return {
+                        ...c,
+                        reminders: c.reminders?.map(r => r.id === id ? { ...r, isCompleted: true } : r)
+                    };
+                })
+            };
+        }));
     }
   };
 
@@ -462,38 +542,59 @@ const App = () => {
     return { totalRevenue, potentialRevenue, activeClients, leads, scammers };
   }, [projects]);
 
+  // Combined Active Reminders (Project Reminders + Global Notifications)
   const activeReminders = useMemo(() => {
     const now = new Date();
     const allReminders: any[] = [];
     
-    projects.forEach(project => {
-        project.clients.forEach(client => {
-            (client.reminders || []).forEach(rem => {
-                if (!rem.isCompleted) {
-                    const remDate = new Date(rem.date);
-                    // Handle valid dates (ignore invalid/incomplete if any)
-                    if(!isNaN(remDate.getTime())) {
-                        let type = 'upcoming';
-                        if (remDate < now) type = 'overdue';
-                        else if (remDate.toDateString() === now.toDateString()) type = 'today';
-                        
-                        // We include all active reminders, sorted by date
-                        allReminders.push({ 
-                            saleId: client.id, 
-                            projectId: project.id, 
-                            clientName: client.clientName, 
-                            projectName: project.name, 
-                            reminder: rem, 
-                            type 
-                        });
+    // 1. Project Reminders
+    if (currentUser?.role === 'admin') {
+        projects.forEach(project => {
+            project.clients.forEach(client => {
+                (client.reminders || []).forEach(rem => {
+                    if (!rem.isCompleted) {
+                        const remDate = new Date(rem.date);
+                        if(!isNaN(remDate.getTime())) {
+                            let type = 'upcoming';
+                            if (remDate < now) type = 'overdue';
+                            else if (remDate.toDateString() === now.toDateString()) type = 'today';
+                            
+                            allReminders.push({ 
+                                id: rem.id,
+                                source: 'project',
+                                saleId: client.id, 
+                                projectId: project.id, 
+                                clientName: client.clientName, 
+                                projectName: project.name, 
+                                note: rem.note,
+                                date: rem.date,
+                                type 
+                            });
+                        }
                     }
-                }
+                });
             });
         });
+    }
+
+    // 2. Global Notifications
+    globalNotifications.forEach(notif => {
+        if (!notif.isRead && (notif.targetUserId === 'all' || notif.targetUserId === currentUser?.id)) {
+            allReminders.push({
+                id: notif.id,
+                source: 'global',
+                clientName: notif.fromUserName, // Sender Name as Client Name for list
+                projectName: 'Notification',
+                note: notif.message,
+                date: notif.date,
+                type: notif.type
+            });
+        }
     });
-    // Sort by date (oldest/overdue first)
-    return allReminders.sort((a, b) => new Date(a.reminder.date).getTime() - new Date(b.reminder.date).getTime());
-  }, [projects]);
+
+    // Sort by date (oldest first)
+    return allReminders.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [projects, globalNotifications, currentUser]);
 
   // View Logic (Projects)
   const filteredClients = useMemo(() => {
@@ -631,15 +732,60 @@ const App = () => {
                     </div>
                     <span className="font-bold text-slate-800">Nexus Worker</span>
                 </div>
-                <Button variant="ghost" onClick={handleLogout} className="text-slate-500 hover:text-red-600">
-                    <LogOut size={18} />
-                </Button>
+                <div className="flex items-center gap-4">
+                    <button onClick={() => setIsChatOpen(true)} className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-600">
+                        <MessageCircle size={20} />
+                        {chatMessages.filter(m => m.receiverId === currentUser.id && !m.read).length > 0 && 
+                          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                        }
+                    </button>
+                    {/* Notification Bell for Workers */}
+                    <div className="relative" ref={notificationRef}>
+                        <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 relative">
+                            <Bell size={20} />
+                            {activeReminders.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>}
+                        </button>
+                        {isNotificationOpen && (
+                            <div className={`absolute ${language === 'ar' ? 'left-0' : 'right-0'} mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden`}>
+                                <div className="p-4 border-b border-slate-100 bg-slate-50 font-bold text-sm">{t.remindersAlerts}</div>
+                                <div className="max-h-80 overflow-y-auto">
+                                    {activeReminders.length === 0 ? <div className="p-4 text-center text-slate-400 text-xs">{t.noNotifications}</div> :
+                                        activeReminders.map(r => (
+                                            <div key={r.id} className="p-4 border-b border-slate-50 flex justify-between items-start hover:bg-slate-50">
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-bold">{r.clientName}</p>
+                                                    <p className="text-xs text-slate-600 mt-1">{r.note}</p>
+                                                    <p className="text-[10px] text-slate-400 mt-1">{new Date(r.date).toLocaleString()}</p>
+                                                </div>
+                                                <button onClick={() => handleMarkAsRead('global', r.id)} className="text-primary-600 hover:bg-primary-50 p-1 rounded">
+                                                    <Check size={16} />
+                                                </button>
+                                            </div>
+                                        ))
+                                    }
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <Button variant="ghost" onClick={handleLogout} className="text-slate-500 hover:text-red-600">
+                        <LogOut size={18} />
+                    </Button>
+                </div>
             </nav>
             <WorkerDashboard 
                 currentUser={currentUser} 
                 projects={projects} 
                 onUpdateTaskStatus={handleWorkerUpdateStatus} 
                 lang={language}
+            />
+            <ChatSystem 
+                currentUser={currentUser} 
+                users={users} 
+                messages={chatMessages} 
+                onSendMessage={handleSendMessage} 
+                isOpen={isChatOpen} 
+                onClose={() => setIsChatOpen(false)} 
+                lang={language} 
             />
         </div>
       );
@@ -772,6 +918,16 @@ const App = () => {
           </div>
           
           <div className="flex items-center gap-3 w-full md:w-auto">
+             {/* Chat Button */}
+             <button onClick={() => setIsChatOpen(true)} className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 relative">
+                <MessageCircle size={20} className="text-slate-600" />
+                {chatMessages.filter(m => m.receiverId === currentUser?.id && !m.read).length > 0 && 
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+                      {chatMessages.filter(m => m.receiverId === currentUser?.id && !m.read).length}
+                  </span>
+                }
+             </button>
+
              {/* Notification Bell */}
              <div className="relative" ref={notificationRef}>
               <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 relative">
@@ -782,25 +938,44 @@ const App = () => {
                 <div className={`absolute ${language === 'ar' ? 'left-0' : 'right-0'} mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-fade-in`}>
                   <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                     <h4 className="font-bold text-slate-800 text-sm">{t.remindersAlerts}</h4>
+                    {activeReminders.length > 0 && (
+                        <button className="text-xs text-primary-600 hover:underline">{t.markRead}</button>
+                    )}
                   </div>
                   <div className="max-h-96 overflow-y-auto">
-                    {activeReminders.length === 0 ? <div className="p-8 text-center text-slate-400 text-xs">لا توجد تذكيرات</div> : 
-                    activeReminders.map(({ saleId, projectId, clientName, projectName, reminder, type }) => (
-                      <button key={reminder.id} onClick={() => { setActiveProjectId(projectId); const p = projects.find(x => x.id === projectId); const c = p?.clients.find(x => x.id === saleId); if(c) { setEditingSale(c); setIsFormOpen(true); setIsNotificationOpen(false); }}} className="w-full text-start p-4 hover:bg-slate-50 border-b border-slate-50 flex gap-3">
-                        <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${type === 'overdue' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
-                          {type === 'overdue' ? <AlertCircle size={16} /> : <Clock size={16} />}
+                    {activeReminders.length === 0 ? <div className="p-8 text-center text-slate-400 text-xs">{t.noNotifications}</div> : 
+                    activeReminders.map((rem: any) => (
+                      <div key={rem.id} className="w-full text-start p-4 hover:bg-slate-50 border-b border-slate-50 flex gap-3 group relative">
+                        <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${rem.type === 'overdue' || rem.type === 'alert' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                          {rem.type === 'overdue' || rem.type === 'alert' ? <AlertCircle size={16} /> : <Clock size={16} />}
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0" onClick={() => {
+                             if(rem.source === 'project') {
+                                 setActiveProjectId(rem.projectId); 
+                                 const p = projects.find(x => x.id === rem.projectId); 
+                                 const c = p?.clients.find(x => x.id === rem.saleId); 
+                                 if(c) { setEditingSale(c); setIsFormOpen(true); setIsNotificationOpen(false); }
+                             }
+                        }}>
                           <div className="flex justify-between items-center mb-0.5">
-                            <span className="font-bold text-slate-800 text-xs truncate">{clientName}</span>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${type === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
-                                {new Date(reminder.date).toLocaleString(language === 'ar' ? 'ar-MA' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            <span className="font-bold text-slate-800 text-xs truncate">{rem.clientName}</span>
+                            <span className="text-[10px] text-slate-400">
+                                {new Date(rem.date).toLocaleString(language === 'ar' ? 'ar-MA' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-400 mb-0.5">{projectName}</p>
-                          <p className="text-slate-500 text-xs line-clamp-2">{reminder.note}</p>
+                          <p className="text-[10px] text-slate-400 mb-0.5">{rem.projectName}</p>
+                          <p className="text-slate-500 text-xs line-clamp-2">{rem.note}</p>
                         </div>
-                      </button>
+                        
+                        {/* Mark as Read Button (Always visible on hover or mobile) */}
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); handleMarkAsRead(rem.source, rem.id, rem.projectId, rem.saleId); }}
+                            className="absolute bottom-2 right-2 p-1.5 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-green-600 hover:border-green-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all"
+                            title={t.markRead}
+                        >
+                            <Check size={14} />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -839,12 +1014,46 @@ const App = () => {
 
         {/* --- TEAM MANAGER VIEW --- */}
         {currentView === 'team' && (
-            <TeamManager 
-                users={users} 
-                onAddUser={handleAddUser} 
-                onDeleteUser={handleDeleteUser} 
-                lang={language} 
-            />
+            <div className="space-y-6">
+                <TeamManager 
+                    users={users} 
+                    onAddUser={handleAddUser} 
+                    onDeleteUser={handleDeleteUser} 
+                    lang={language} 
+                />
+                
+                {/* Send Notification Card */}
+                <Card className="p-6">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <Bell size={20} className="text-primary-600" />
+                        {t.teamManagement.sendNotification}
+                    </h3>
+                    <div className="flex flex-col md:flex-row gap-4 items-end">
+                        <div className="w-full md:w-1/3">
+                             <Select 
+                                label={t.teamManagement.assignTo}
+                                options={[
+                                    { label: 'All Workers', value: 'all' },
+                                    ...users.filter(u => u.role === 'worker').map(u => ({ label: u.name, value: u.id }))
+                                ]}
+                                value={selectedWorkerForNotification}
+                                onChange={(e) => setSelectedWorkerForNotification(e.target.value)}
+                             />
+                        </div>
+                        <div className="w-full md:flex-1">
+                             <Input 
+                                label={t.teamManagement.notificationMessage}
+                                value={notificationMessage}
+                                onChange={(e) => setNotificationMessage(e.target.value)}
+                                placeholder="..."
+                             />
+                        </div>
+                        <Button onClick={() => handleSendNotification(selectedWorkerForNotification, notificationMessage)} disabled={!notificationMessage || !selectedWorkerForNotification}>
+                            {t.teamManagement.sendNotification}
+                        </Button>
+                    </div>
+                </Card>
+            </div>
         )}
 
         {/* --- ANALYTICS VIEW --- */}
@@ -1165,6 +1374,17 @@ const App = () => {
           lang={language} 
         />
       )}
+
+      {/* Chat System (Always rendered but visible based on state) */}
+      <ChatSystem 
+          currentUser={currentUser} 
+          users={users} 
+          messages={chatMessages} 
+          onSendMessage={handleSendMessage} 
+          isOpen={isChatOpen} 
+          onClose={() => setIsChatOpen(false)} 
+          lang={language} 
+      />
 
       {/* Project Creation Modal */}
       {isProjectModalOpen && (

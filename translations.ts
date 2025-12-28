@@ -52,7 +52,7 @@ export const translations = {
     unitPrice: 'Unit Price (MAD)',
     quantity: 'Quantity',
     itemsBreakdown: 'Task List & Items',
-    remindersAlerts: 'Reminders & Alerts',
+    remindersAlerts: 'Notifications',
     addReminder: 'Add Reminder',
     leadDate: 'Lead Date',
     startDate: 'Start Date',
@@ -156,8 +156,15 @@ export const translations = {
       myTasks: 'My Tasks',
       assignedTasks: 'Assigned Tasks',
       noTasks: 'No tasks assigned to you yet.',
-      updateStatus: 'Update Status'
-    }
+      updateStatus: 'Update Status',
+      sendNotification: 'Send Notification',
+      notificationMessage: 'Notification Message',
+      notificationSent: 'Notification sent successfully',
+      chat: 'Team Chat',
+      typeMessage: 'Type a message...'
+    },
+    markRead: 'Mark as read',
+    noNotifications: 'No new notifications',
   },
   ar: {
     dashboard: 'لوحة التحكم',
@@ -210,7 +217,7 @@ export const translations = {
     unitPrice: 'سعر الوحدة (درهم)',
     quantity: 'الكمية',
     itemsBreakdown: 'قائمة المهام والعناصر',
-    remindersAlerts: 'التذكيرات والتنبيهات',
+    remindersAlerts: 'الإشعارات',
     addReminder: 'إضافة تذكير',
     leadDate: 'تاريخ الطلب',
     startDate: 'تاريخ البدء',
@@ -314,7 +321,14 @@ export const translations = {
       myTasks: 'مهامي',
       assignedTasks: 'المهام المعينة',
       noTasks: 'لا توجد مهام معينة لك بعد.',
-      updateStatus: 'تحديث الحالة'
-    }
+      updateStatus: 'تحديث الحالة',
+      sendNotification: 'إرسال إشعار',
+      notificationMessage: 'نص الإشعار',
+      notificationSent: 'تم إرسال الإشعار بنجاح',
+      chat: 'دردشة الفريق',
+      typeMessage: 'اكتب رسالة...'
+    },
+    markRead: 'تمييز كمقروء',
+    noNotifications: 'لا توجد إشعارات جديدة',
   }
 };
