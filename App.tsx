@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Sale, SaleStatus, Project, ServiceType, User, UserRole, ItemStatus } from './types';
+import { Sale, SaleStatus, Project, ServiceType, User, UserRole, ItemStatus, Reminder } from './types';
 import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge, Input, Select } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
 import Copilot from './components/Copilot';
@@ -281,6 +281,7 @@ const App = () => {
               clients: p.clients.map(c => {
                   if (c.id !== saleId) return c;
                   const newItems = [...c.items];
+                  const taskName = newItems[itemIndex].name || (language === 'ar' ? 'مهمة' : 'Task');
                   newItems[itemIndex] = { ...newItems[itemIndex], status: newStatus };
                   
                   // Auto-update overall status if all Delivered
@@ -288,7 +289,22 @@ const App = () => {
                   if (newItems.every(i => i.status === 'Delivered')) newClientStatus = SaleStatus.Delivered;
                   else if (newItems.some(i => i.status === 'In Progress' || i.status === 'Delivered') && c.status === SaleStatus.Lead) newClientStatus = SaleStatus.InProgress;
 
-                  return { ...c, items: newItems, status: newClientStatus };
+                  // Create Notification/Reminder
+                  const notification: Reminder = {
+                      id: crypto.randomUUID(),
+                      date: new Date().toISOString(),
+                      note: language === 'ar' 
+                          ? `${currentUser?.name} قام بتحديث "${taskName}" إلى ${translations.ar.itemStatuses[newStatus]}`
+                          : `${currentUser?.name} updated "${taskName}" to ${newStatus}`,
+                      isCompleted: false
+                  };
+
+                  return { 
+                      ...c, 
+                      items: newItems, 
+                      status: newClientStatus,
+                      reminders: [...(c.reminders || []), notification]
+                  };
               })
           };
       }));
