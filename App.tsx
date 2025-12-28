@@ -1080,6 +1080,7 @@ const App = () => {
                             <th className="px-6 py-4">{t.leadDate}</th>
                             <th className="px-6 py-4">{t.status}</th>
                             <th className="px-6 py-4">{t.scope}</th>
+                            <th className="px-6 py-4">{t.assignedTeam}</th>
                             <th className="px-6 py-4">{t.paymentStatus}</th>
                             <th className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>{t.actions}</th>
                         </tr>
@@ -1087,11 +1088,13 @@ const App = () => {
                         <tbody className="divide-y divide-slate-50">
                         {filteredClients.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="text-center py-10 text-slate-400 text-sm">{t.noProjectsFound}</td>
+                                <td colSpan={7} className="text-center py-10 text-slate-400 text-sm">{t.noProjectsFound}</td>
                             </tr>
                         ) : filteredClients.map((client) => {
                             const paidCount = (client.items || []).filter(i => i.isPaid).length;
                             const totalCount = (client.items || []).length;
+                            const assignedWorkers = users.filter(u => client.assignedWorkerIds?.includes(u.id));
+
                             return (
                             <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
                                 <td className="px-6 py-4">
@@ -1110,6 +1113,15 @@ const App = () => {
                                 </td>
                                 <td className="px-6 py-4"><StatusBadge status={client.status} lang={language} /></td>
                                 <td className="px-6 py-4"><ServiceBadge type={client.serviceType} lang={language} /></td>
+                                <td className="px-6 py-4">
+                                    <div className="flex -space-x-2 rtl:space-x-reverse">
+                                        {assignedWorkers.length > 0 ? assignedWorkers.map(w => (
+                                            <div key={w.id} className="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-blue-700" title={w.name}>
+                                                {w.name.charAt(0)}
+                                            </div>
+                                        )) : <span className="text-xs text-slate-400 italic">-</span>}
+                                    </div>
+                                </td>
                                 <td className="px-6 py-4">
                                 <PaymentStatusBadge paidCount={paidCount} totalCount={totalCount} lang={language} />
                                 <div className="mt-2 text-xs text-slate-500">
