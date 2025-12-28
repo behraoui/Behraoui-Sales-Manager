@@ -369,6 +369,49 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
             </div>
           </div>
 
+          {/* Team Assignment Section */}
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">{t.teamManagement.assignTo}</h3>
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <div className="flex flex-wrap gap-2 mb-4">
+                    {workers.length === 0 ? (
+                        <p className="text-sm text-slate-400 italic">{t.teamManagement.noWorkers}</p>
+                    ) : (
+                        workers.map(worker => (
+                            <button
+                                key={worker.id}
+                                type="button"
+                                onClick={() => toggleWorker(worker.id)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    formData.assignedWorkerIds?.includes(worker.id)
+                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                                        : 'bg-white text-slate-600 border border-slate-200 hover:border-blue-300'
+                                }`}
+                            >
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                    formData.assignedWorkerIds?.includes(worker.id) ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                                }`}>
+                                    {worker.name.charAt(0)}
+                                </div>
+                                {worker.name}
+                                {formData.assignedWorkerIds?.includes(worker.id) && <CheckCircle2 size={14} />}
+                            </button>
+                        ))
+                    )}
+                </div>
+                
+                <div>
+                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{t.teamManagement.instructions}</label>
+                     <textarea 
+                        className="w-full rounded-xl border-slate-200 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm border p-3 outline-none min-h-[80px]"
+                        placeholder={t.teamManagement.instructionsPlaceholder}
+                        value={formData.teamInstructions || ''}
+                        onChange={(e) => setFormData({...formData, teamInstructions: e.target.value})}
+                     />
+                </div>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.remindersAlerts}</h3>
