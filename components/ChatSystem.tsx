@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User, ChatMessage } from '../types';
 import { translations } from '../translations';
 import { Send, X, MessageCircle, User as UserIcon } from 'lucide-react';
@@ -8,12 +8,13 @@ interface ChatSystemProps {
   users: User[];
   messages: ChatMessage[];
   onSendMessage: (receiverId: string, text: string) => void;
+  onMarkRead: (senderId: string) => void;
   isOpen: boolean;
   onClose: () => void;
   lang: 'en' | 'ar';
 }
 
-const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, users, messages, onSendMessage, isOpen, onClose, lang }) => {
+const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, users, messages, onSendMessage, onMarkRead, isOpen, onClose, lang }) => {
   const t = translations[lang];
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -30,6 +31,27 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, users, messages, o
       setSelectedUser(chatUsers[0]);
     }
   }, [chatUsers, selectedUser]);
+
+  // Calculate unread counts for sidebar
+  const unreadCounts = useMemo(() => {
+      const counts: Record<string, number> = {};
+      messages.forEach(m => {
+          if (m.receiverId === currentUser.id && !m.read) {
+              counts[m.senderId] = (counts[m.senderId] || 0) + 1;
+          }
+      });
+      return counts;
+  }, [messages, currentUser.id]);
+
+  // Mark as read when viewing conversation
+  useEffect(() => {
+      if (selectedUser && isOpen) {
+          const hasUnread = messages.some(m => m.senderId === selectedUser.id && m.receiverId === currentUser.id && !m.read);
+          if (hasUnread) {
+              onMarkRead(selectedUser.id);
+          }
+      }
+  }, [selectedUser, messages, isOpen, currentUser.id]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -66,17 +88,20 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, users, messages, o
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* User List (Sidebar for Desktop, Top bar for Mobile if needed, kept simple here) */}
+        {/* User List (Sidebar) - Only show list if Admin, or if needed */}
         {currentUser.role === 'admin' && (
            <div className={`w-16 md:w-20 bg-slate-50 border-${lang === 'ar' ? 'l' : 'r'} border-slate-200 overflow-y-auto flex flex-col items-center py-2 gap-2`}>
              {chatUsers.map(u => (
                <button 
                  key={u.id}
                  onClick={() => setSelectedUser(u)}
-                 className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${selectedUser?.id === u.id ? 'border-primary-500 bg-primary-100 text-primary-700' : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300'}`}
+                 className={`relative w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${selectedUser?.id === u.id ? 'border-primary-500 bg-primary-100 text-primary-700' : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300'}`}
                  title={u.name}
                >
                  {u.name.charAt(0).toUpperCase()}
+                 {unreadCounts[u.id] > 0 && (
+                     <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+                 )}
                </button>
              ))}
            </div>
@@ -89,7 +114,10 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, users, messages, o
                 <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
                     {selectedUser.name.charAt(0)}
                 </div>
-                <span className="font-bold text-sm text-slate-800">{selectedUser.name}</span>
+                <div className="flex flex-col">
+                    <span className="font-bold text-sm text-slate-800">{selectedUser.name}</span>
+                    <span className="text-[10px] text-slate-400 capitalize">{selectedUser.role}</span>
+                </div>
              </div>
           )}
 
@@ -103,9 +131,16 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ currentUser, users, messages, o
                         <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${isMe ? 'bg-primary-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-700 rounded-bl-none shadow-sm'}`}>
                                 <p>{m.text}</p>
-                                <p className={`text-[9px] mt-1 text-${isMe ? 'primary-200' : 'slate-400'} text-end`}>
-                                    {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </p>
+                                <div className="flex items-center justify-end gap-1 mt-1">
+                                    <p className={`text-[9px] ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
+                                        {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                    {isMe && (
+                                        <span className={m.read ? 'text-white' : 'text-primary-300'}>
+                                            {m.read ? '✓✓' : '✓'}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     );

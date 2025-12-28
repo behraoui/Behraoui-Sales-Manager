@@ -121,8 +121,6 @@ const App = () => {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [paymentFilter, setPaymentFilter] = useState<string>('All');
   const [sortOrder, setSortOrder] = useState<string>('dateDesc');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -330,6 +328,14 @@ const App = () => {
           read: false
       };
       setChatMessages(prev => [...prev, newMessage]);
+  };
+
+  const handleMarkChatRead = (senderId: string) => {
+      setChatMessages(prev => prev.map(m => 
+          (m.senderId === senderId && m.receiverId === currentUser?.id && !m.read)
+          ? { ...m, read: true }
+          : m
+      ));
   };
 
   const handleMarkAsRead = (type: 'project' | 'global', id: string, projectId?: string, saleId?: string) => {
@@ -611,11 +617,7 @@ const App = () => {
         (paymentFilter === 'Partially Paid' && paidCount > 0 && paidCount < totalCount) ||
         (paymentFilter === 'Unpaid' && paidCount === 0);
       
-      let matchesDate = true;
-      if (startDate) matchesDate = matchesDate && client.leadDate >= startDate;
-      if (endDate) matchesDate = matchesDate && client.leadDate <= endDate;
-
-      return matchesSearch && matchesStatus && matchesPayment && matchesDate;
+      return matchesSearch && matchesStatus && matchesPayment;
     });
 
     // Sorting Logic
@@ -635,7 +637,7 @@ const App = () => {
       // Default: Date Descending
       return new Date(b.leadDate).getTime() - new Date(a.leadDate).getTime();
     });
-  }, [activeProject, searchTerm, statusFilter, paymentFilter, startDate, endDate, sortOrder]);
+  }, [activeProject, searchTerm, statusFilter, paymentFilter, sortOrder]);
 
   const filteredProjects = useMemo(() => {
       if (activeProjectId) return []; 
@@ -783,6 +785,7 @@ const App = () => {
                 users={users} 
                 messages={chatMessages} 
                 onSendMessage={handleSendMessage} 
+                onMarkRead={handleMarkChatRead}
                 isOpen={isChatOpen} 
                 onClose={() => setIsChatOpen(false)} 
                 lang={language} 
@@ -1254,13 +1257,6 @@ const App = () => {
                         </div>
                         
                         <div className="flex flex-wrap gap-2 w-full lg:w-auto items-center">
-                        <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                            <div className="flex items-center px-2 text-slate-400"><Calendar size={16} /></div>
-                            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-sm outline-none w-32" placeholder={t.startDate} />
-                            <span className="text-slate-300">-</span>
-                            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-sm outline-none w-32" placeholder={t.endDate} />
-                        </div>
-
                         <select className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
                             <option value="dateDesc">{t.sortOptions.dateNewest}</option>
                             <option value="paymentStatus">{t.sortOptions.paymentStatus}</option>
@@ -1381,6 +1377,7 @@ const App = () => {
           users={users} 
           messages={chatMessages} 
           onSendMessage={handleSendMessage} 
+          onMarkRead={handleMarkChatRead}
           isOpen={isChatOpen} 
           onClose={() => setIsChatOpen(false)} 
           lang={language} 
