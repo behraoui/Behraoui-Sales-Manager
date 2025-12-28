@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Sale, SaleStatus, ServiceType, SaleItem, Reminder, ItemStatus } from '../types';
+import { Sale, SaleStatus, ServiceType, SaleItem, Reminder, ItemStatus, User } from '../types';
 import { Button, Input, Select } from './UIComponents';
 import { translations } from '../translations';
-import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle } from 'lucide-react';
+import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users } from 'lucide-react';
 
 interface SalesFormProps {
   initialData?: Sale | null;
@@ -11,10 +11,13 @@ interface SalesFormProps {
   onSave: (sale: Sale) => void;
   onDelete?: (id: string, name: string) => void;
   lang?: 'en' | 'ar';
+  users: User[]; // Pass all users to allow assignment
 }
 
-const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onSave, onDelete, lang = 'en' }) => {
+const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onSave, onDelete, lang = 'en', users }) => {
   const t = translations[lang];
+  const workers = users.filter(u => u.role === 'worker');
+
   const [formData, setFormData] = useState<Partial<Sale>>({
     serviceType: ServiceType.VideoAds,
     status: SaleStatus.Lead,
@@ -25,6 +28,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     phoneNumber: '',
     leadDate: new Date().toISOString().split('T')[0],
     reminders: [],
+    assignedWorkerIds: [],
+    teamInstructions: ''
   });
 
   useEffect(() => {
@@ -35,6 +40,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         items: initialData.items.map(i => ({ ...i, status: i.status || 'Pending' })),
         leadDate: initialData.leadDate.split('T')[0],
         sentDate: initialData.sentDate ? initialData.sentDate.split('T')[0] : '',
+        assignedWorkerIds: initialData.assignedWorkerIds || [],
+        teamInstructions: initialData.teamInstructions || ''
       });
     } else {
       setFormData({
@@ -47,6 +54,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         phoneNumber: '',
         leadDate: new Date().toISOString().split('T')[0],
         reminders: [],
+        assignedWorkerIds: [],
+        teamInstructions: ''
       });
     }
   }, [initialData, isOpen]);
@@ -84,6 +93,17 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
   const removeReminder = (id: string) => setFormData(prev => ({ ...prev, reminders: (prev.reminders || []).filter(r => r.id !== id) }));
   const updateReminder = (id: string, updates: Partial<Reminder>) => setFormData(prev => ({ ...prev, reminders: (prev.reminders || []).map(r => r.id === id ? { ...r, ...updates } : r) }));
 
+  const toggleWorker = (workerId: string) => {
+      setFormData(prev => {
+          const current = prev.assignedWorkerIds || [];
+          if (current.includes(workerId)) {
+              return { ...prev, assignedWorkerIds: current.filter(id => id !== workerId) };
+          } else {
+              return { ...prev, assignedWorkerIds: [...current, workerId] };
+          }
+      });
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -101,6 +121,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       leadDate: formData.leadDate || new Date().toISOString(),
       sentDate: formData.sentDate || undefined,
       reminders: formData.reminders || [],
+      assignedWorkerIds: formData.assignedWorkerIds || [],
+      teamInstructions: formData.teamInstructions || ''
     });
     onClose();
   };
@@ -133,6 +155,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
+          {/* Client Details Section */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.clientDetails}</h3>
             <Input label={t.clientName} value={formData.clientName} onChange={(e) => setFormData({ ...formData, clientName: e.target.value })} required />
@@ -141,6 +164,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
           
           <div className="h-px bg-slate-100 w-full" />
 
+          {/* Scope and Financials */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.projectScope}</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -175,6 +199,47 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          <div className="h-px bg-slate-100 w-full" />
+
+          {/* Team Assignment Section */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Users size={14} /> {t.teamManagement.assignTo}
+            </h3>
+            
+            {workers.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2">
+                    {workers.map(worker => (
+                        <button
+                            key={worker.id}
+                            type="button"
+                            onClick={() => toggleWorker(worker.id)}
+                            className={`p-2 rounded-lg border text-sm font-medium transition-all text-start flex items-center justify-between ${
+                                formData.assignedWorkerIds?.includes(worker.id) 
+                                ? 'bg-primary-50 border-primary-200 text-primary-700' 
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                        >
+                            <span>{worker.name}</span>
+                            {formData.assignedWorkerIds?.includes(worker.id) && <CheckCircle size={14} />}
+                        </button>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-sm text-slate-400 italic">{t.teamManagement.noWorkers}</p>
+            )}
+
+            <div className="pt-2">
+                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{t.teamManagement.instructions}</label>
+                 <textarea 
+                    className="w-full rounded-xl border-slate-200 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm border p-3 outline-none transition-all min-h-[100px]"
+                    placeholder={t.teamManagement.instructionsPlaceholder}
+                    value={formData.teamInstructions}
+                    onChange={(e) => setFormData({ ...formData, teamInstructions: e.target.value })}
+                 />
             </div>
           </div>
 

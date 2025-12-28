@@ -16,6 +16,17 @@ export enum SaleStatus {
 
 export type ItemStatus = 'Pending' | 'In Progress' | 'Delivered';
 
+export type UserRole = 'admin' | 'worker';
+
+export interface User {
+  id: string;
+  username: string;
+  password: string; // In a real app, this should be hashed
+  name: string;
+  role: UserRole;
+  createdAt: string;
+}
+
 export interface Reminder {
   id: string;
   date: string; // ISO Date string (YYYY-MM-DD)
@@ -43,6 +54,8 @@ export interface Sale {
   sentDate?: string; // ISO Date string
   notes?: string;
   reminders?: Reminder[];
+  assignedWorkerIds?: string[]; // IDs of users assigned to this sale
+  teamInstructions?: string; // Specific instructions for the team
 }
 
 export interface Project {

@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Sale, SaleStatus, Project, ServiceType } from './types';
+import { Sale, SaleStatus, Project, ServiceType, User, UserRole, ItemStatus } from './types';
 import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge, Input, Select } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
 import Copilot from './components/Copilot';
 import LoginPage from './components/LoginPage';
+import TeamManager from './components/TeamManager';
+import WorkerDashboard from './components/WorkerDashboard';
 import { translations } from './translations';
 import { 
   Plus, 
@@ -35,17 +37,20 @@ import {
   MessageCircle,
   BarChart3,
   FileSpreadsheet,
-  ArrowUpDown
+  ArrowUpDown,
+  UserCog
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 const COLORS = ['#0ea5e9', '#ec4899', '#f97316', '#10b981', '#6366f1'];
 
 type TimeRange = 'all' | 'today' | 'yesterday' | 'last7Days' | 'thisMonth' | 'lastMonth' | 'custom';
+type View = 'dashboard' | 'analytics' | 'team';
 
 const App = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('nexus_auth') === 'true';
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('nexus_current_user');
+    return saved ? JSON.parse(saved) : null;
   });
 
   const [language, setLanguage] = useState<'en' | 'ar'>(() => {
@@ -53,6 +58,25 @@ const App = () => {
   });
 
   const t = translations[language];
+
+  // Users State
+  const [users, setUsers] = useState<User[]>(() => {
+      const savedUsers = localStorage.getItem('nexus_users');
+      if (savedUsers) {
+          try {
+              return JSON.parse(savedUsers);
+          } catch (e) { return []; }
+      }
+      // Default Admin
+      return [{
+          id: 'admin-1',
+          username: 'admin',
+          password: 'nexus2025', // Hardcoded initial password
+          name: 'Administrator',
+          role: 'admin',
+          createdAt: new Date().toISOString()
+      }];
+  });
 
   // Projects State
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -62,31 +86,11 @@ const App = () => {
         return JSON.parse(savedProjects);
       } catch (e) { return []; }
     }
-    
-    // Migration: If no projects but 'nexus_sales' exists, create a Legacy Project
-    const oldSales = localStorage.getItem('nexus_sales');
-    if (oldSales) {
-      try {
-        const legacyClients = JSON.parse(oldSales);
-        if (Array.isArray(legacyClients) && legacyClients.length > 0) {
-          const legacyProject: Project = {
-            id: 'legacy-project',
-            name: 'Legacy Clients',
-            createdAt: new Date().toISOString(),
-            clients: legacyClients.map((s: any) => ({
-                ...s,
-                items: (s.items || []).map((i: any) => ({ ...i, status: i.status || 'Pending' }))
-            }))
-          };
-          return [legacyProject];
-        }
-      } catch (e) {}
-    }
     return [];
   });
 
   // Navigation State
-  const [currentView, setCurrentView] = useState<'dashboard' | 'analytics'>('dashboard');
+  const [currentView, setCurrentView] = useState<View>('dashboard');
   
   // Active Project (if null, show dashboard grid)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -127,6 +131,18 @@ const App = () => {
   }, [projects]);
 
   useEffect(() => {
+    localStorage.setItem('nexus_users', JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    if (currentUser) {
+        localStorage.setItem('nexus_current_user', JSON.stringify(currentUser));
+    } else {
+        localStorage.removeItem('nexus_current_user');
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
     localStorage.setItem('nexus_lang', language);
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
@@ -151,21 +167,36 @@ const App = () => {
   }, [activeProjectId, activeProject]);
 
   // Auth Handlers
-  const handleLogin = () => {
-    localStorage.setItem('nexus_auth', 'true');
-    setIsAuthenticated(true);
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
   };
 
   const handleLogout = () => {
     if (window.confirm(language === 'ar' ? 'هل أنت متأكد أنك تريد تسجيل الخروج؟' : 'Are you sure you want to logout?')) {
-      localStorage.removeItem('nexus_auth');
-      setIsAuthenticated(false);
+      setCurrentUser(null);
+      // Reset view states
+      setCurrentView('dashboard');
+      setActiveProjectId(null);
     }
+  };
+
+  // User Management Handlers
+  const handleAddUser = (userData: Omit<User, 'id' | 'createdAt'>) => {
+      const newUser: User = {
+          ...userData,
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString()
+      };
+      setUsers([...users, newUser]);
+  };
+
+  const handleDeleteUser = (id: string) => {
+      setUsers(users.filter(u => u.id !== id));
   };
 
   // Data Handlers
   const handleExport = () => {
-    const dataStr = JSON.stringify(projects, null, 2);
+    const dataStr = JSON.stringify({ projects, users }, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     const exportFileDefaultName = `nexus-backup-${new Date().toISOString().split('T')[0]}.json`;
     const linkElement = document.createElement('a');
@@ -183,14 +214,18 @@ const App = () => {
       try {
         const content = e.target?.result as string;
         const importedData = JSON.parse(content);
+        
+        // Handle V1 (Array of Projects) vs V2 (Object with projects & users)
         if (Array.isArray(importedData)) {
-            // Basic validation check
-            if (importedData.length > 0 && !importedData[0].clients && importedData[0].price) {
-                 alert(language === 'ar' ? 'يبدو أن هذا ملف نسخ احتياطي قديم (تنسيق V1). يرجى الاتصال بالدعم.' : 'This appears to be a legacy backup file (V1 format). Please contact support for migration.');
-                 return;
-            }
-            if (window.confirm(language === 'ar' ? 'هل أنت متأكد؟ سيؤدي هذا إلى استبدال بياناتك الحالية.' : 'Are you sure? This will replace your current data.')) {
+            // Legacy V1
+             if (window.confirm(language === 'ar' ? 'هل أنت متأكد؟ سيؤدي هذا إلى استبدال بياناتك الحالية.' : 'Are you sure? This will replace your current data.')) {
                 setProjects(importedData);
+            }
+        } else if (importedData.projects) {
+            // V2
+             if (window.confirm(language === 'ar' ? 'هل أنت متأكد؟ سيؤدي هذا إلى استبدال بياناتك الحالية.' : 'Are you sure? This will replace your current data.')) {
+                setProjects(importedData.projects || []);
+                if (importedData.users) setUsers(importedData.users);
             }
         }
       } catch (err) {
@@ -235,6 +270,28 @@ const App = () => {
     if (cleanNumber) {
         window.open(`https://wa.me/${cleanNumber}`, '_blank');
     }
+  };
+
+  // Worker Task Update
+  const handleWorkerUpdateStatus = (projectId: string, saleId: string, itemIndex: number, newStatus: ItemStatus) => {
+      setProjects(prev => prev.map(p => {
+          if (p.id !== projectId) return p;
+          return {
+              ...p,
+              clients: p.clients.map(c => {
+                  if (c.id !== saleId) return c;
+                  const newItems = [...c.items];
+                  newItems[itemIndex] = { ...newItems[itemIndex], status: newStatus };
+                  
+                  // Auto-update overall status if all Delivered
+                  let newClientStatus = c.status;
+                  if (newItems.every(i => i.status === 'Delivered')) newClientStatus = SaleStatus.Delivered;
+                  else if (newItems.some(i => i.status === 'In Progress' || i.status === 'Delivered') && c.status === SaleStatus.Lead) newClientStatus = SaleStatus.InProgress;
+
+                  return { ...c, items: newItems, status: newClientStatus };
+              })
+          };
+      }));
   };
 
   // --- ANALYTICS LOGIC ---
@@ -534,10 +591,36 @@ const App = () => {
     );
   };
 
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} lang={language} />;
+  if (!currentUser) {
+    return <LoginPage onLogin={handleLogin} users={users} lang={language} />;
   }
 
+  // --- WORKER VIEW RENDER ---
+  if (currentUser.role === 'worker') {
+      return (
+        <div className={`min-h-screen bg-slate-50 ${language === 'ar' ? 'font-arabic' : 'font-sans'}`}>
+            <nav className="bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm">
+                <div className="flex items-center gap-2">
+                     <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary-500/20">
+                        <TrendingUp size={18} className="text-white" />
+                    </div>
+                    <span className="font-bold text-slate-800">Nexus Worker</span>
+                </div>
+                <Button variant="ghost" onClick={handleLogout} className="text-slate-500 hover:text-red-600">
+                    <LogOut size={18} />
+                </Button>
+            </nav>
+            <WorkerDashboard 
+                currentUser={currentUser} 
+                projects={projects} 
+                onUpdateTaskStatus={handleWorkerUpdateStatus} 
+                lang={language}
+            />
+        </div>
+      );
+  }
+
+  // --- ADMIN VIEW RENDER ---
   return (
     <div className={`min-h-screen flex bg-slate-50 text-slate-800 font-sans relative overflow-x-hidden ${language === 'ar' ? 'font-arabic' : ''}`}>
       <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
@@ -571,6 +654,11 @@ const App = () => {
             <span>{t.analytics}</span>
           </button>
 
+          <button onClick={() => { setCurrentView('team'); setActiveProjectId(null); setIsSidebarOpen(false); }} className={`flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl font-medium mb-1 transition-colors ${currentView === 'team' ? 'bg-primary-50 text-primary-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
+            <UserCog size={20} />
+            <span>{t.team}</span>
+          </button>
+
           <div className="pt-6 mt-4 border-t border-slate-100">
             <p className="px-4 text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">{t.backupData}</p>
             <button onClick={handleExport} className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-800">
@@ -588,6 +676,15 @@ const App = () => {
           </div>
 
           <div className="pt-2 mt-4 border-t border-slate-100">
+             <div className="px-4 py-2 mb-2 flex items-center gap-2">
+                 <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold">
+                     {currentUser.name.charAt(0)}
+                 </div>
+                 <div className="overflow-hidden">
+                     <p className="text-sm font-bold text-slate-800 truncate">{currentUser.name}</p>
+                     <p className="text-xs text-slate-400 truncate">@{currentUser.username}</p>
+                 </div>
+             </div>
              <button onClick={handleLogout} className="flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl hover:bg-red-50 transition-all text-slate-500 hover:text-red-600">
               <LogOut size={20} />
               <span>{t.logout}</span>
@@ -640,7 +737,9 @@ const App = () => {
                     </div>
                 ) : (
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{currentView === 'analytics' ? t.analytics : t.dashboard}</h1>
+                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                            {currentView === 'analytics' ? t.analytics : currentView === 'team' ? t.team : t.dashboard}
+                        </h1>
                         <p className="text-slate-500 text-sm">{language === 'ar' ? 'إدارة المشاريع الرقمية والإيرادات الخاصة بك.' : 'Manage your digital projects and revenue.'}</p>
                     </div>
                 )}
@@ -694,8 +793,8 @@ const App = () => {
                 </Button>
             )}
 
-            {/* Create Action Button (Visible everywhere except Analytics) */}
-            {currentView !== 'analytics' && (
+            {/* Create Action Button (Visible everywhere except Analytics/Team) */}
+            {currentView === 'dashboard' && (
                 activeProjectId ? (
                     <Button onClick={() => { setEditingSale(null); setIsFormOpen(true); }} className="shadow-lg shadow-primary-500/20 flex-1 md:flex-none">
                     <Plus size={18} className={`${language === 'ar' ? 'ml-2' : 'mr-2'}`} />
@@ -710,6 +809,16 @@ const App = () => {
             )}
           </div>
         </header>
+
+        {/* --- TEAM MANAGER VIEW --- */}
+        {currentView === 'team' && (
+            <TeamManager 
+                users={users} 
+                onAddUser={handleAddUser} 
+                onDeleteUser={handleDeleteUser} 
+                lang={language} 
+            />
+        )}
 
         {/* --- ANALYTICS VIEW --- */}
         {currentView === 'analytics' && (
@@ -1006,6 +1115,7 @@ const App = () => {
         onSave={handleSaveClient} 
         onDelete={handleDeleteClient} 
         lang={language} 
+        users={users}
       />
 
       {isCopilotOpen && (

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Button, Input } from './UIComponents';
 import { translations } from '../translations';
-import { TrendingUp, Lock, User, AlertCircle } from 'lucide-react';
+import { TrendingUp, Lock, User, AlertCircle, Info } from 'lucide-react';
+import { User as UserType } from '../types';
 
 interface LoginPageProps {
-  onLogin: () => void;
+  onLogin: (user: UserType) => void;
+  users: UserType[];
   lang: 'en' | 'ar';
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, lang }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, users, lang }) => {
   const t = translations[lang];
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -16,9 +18,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, lang }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Hardcoded credentials
-    if (username.toLowerCase() === 'admin' && password === 'nexus2025') {
-      onLogin();
+    
+    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+    
+    if (user) {
+      onLogin(user);
     } else {
       setError(true);
       setPassword(''); // Clear password on error
@@ -53,7 +57,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, lang }) => {
               value={username} 
               onChange={(e) => { setUsername(e.target.value); setError(false); }} 
               className={lang === 'ar' ? 'pr-10' : 'pl-10'}
-              placeholder="admin"
+              placeholder="admin / worker"
               required 
             />
           </div>
@@ -77,8 +81,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, lang }) => {
           </Button>
         </form>
 
-        <div className="mt-8 text-center">
-          <p className="text-xs text-slate-400 font-medium">Nexus Sales Manager &copy; 2025</p>
+        <div className="mt-8 pt-6 border-t border-slate-50 text-center">
+           <div className="flex items-center justify-center gap-2 text-slate-400 mb-4">
+               <Info size={14} />
+               <p className="text-xs">{t.contactAdmin}</p>
+           </div>
+          <p className="text-xs text-slate-300 font-medium">Nexus Sales Manager &copy; 2025</p>
         </div>
       </div>
     </div>
