@@ -447,27 +447,36 @@ const App = () => {
   }, [projects]);
 
   const activeReminders = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
     const allReminders: any[] = [];
     
     projects.forEach(project => {
         project.clients.forEach(client => {
             (client.reminders || []).forEach(rem => {
                 if (!rem.isCompleted) {
-                    let type = rem.date === todayStr ? 'today' : rem.date < todayStr ? 'overdue' : 'upcoming';
-                    allReminders.push({ 
-                        saleId: client.id, 
-                        projectId: project.id,
-                        clientName: client.clientName, 
-                        projectName: project.name,
-                        reminder: rem, 
-                        type 
-                    });
+                    const remDate = new Date(rem.date);
+                    // Handle valid dates (ignore invalid/incomplete if any)
+                    if(!isNaN(remDate.getTime())) {
+                        let type = 'upcoming';
+                        if (remDate < now) type = 'overdue';
+                        else if (remDate.toDateString() === now.toDateString()) type = 'today';
+                        
+                        // We include all active reminders, sorted by date
+                        allReminders.push({ 
+                            saleId: client.id, 
+                            projectId: project.id, 
+                            clientName: client.clientName, 
+                            projectName: project.name, 
+                            reminder: rem, 
+                            type 
+                        });
+                    }
                 }
             });
         });
     });
-    return allReminders.sort((a, b) => a.reminder.date.localeCompare(b.reminder.date));
+    // Sort by date (oldest/overdue first)
+    return allReminders.sort((a, b) => new Date(a.reminder.date).getTime() - new Date(b.reminder.date).getTime());
   }, [projects]);
 
   // View Logic (Projects)
@@ -768,7 +777,9 @@ const App = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-center mb-0.5">
                             <span className="font-bold text-slate-800 text-xs truncate">{clientName}</span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100">{reminder.date}</span>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${type === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+                                {new Date(reminder.date).toLocaleString(language === 'ar' ? 'ar-MA' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
                           </div>
                           <p className="text-[10px] text-slate-400 mb-0.5">{projectName}</p>
                           <p className="text-slate-500 text-xs line-clamp-2">{reminder.note}</p>

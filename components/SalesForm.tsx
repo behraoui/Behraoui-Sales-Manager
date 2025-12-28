@@ -120,12 +120,20 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
   const handleFileUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
+      processFile(index, file);
+      e.target.value = ''; // Reset input
+  };
 
+  // Logic to process a file (from upload or paste) and add to attachments
+  const processFile = (index: number, file: File) => {
       const reader = new FileReader();
       reader.onload = (event) => {
           const base64 = event.target?.result as string;
+          // Generate a name for pasted files if missing
+          const fileName = file.name || `Pasted_File_${new Date().getTime()}.${file.type.split('/')[1] || 'png'}`;
+          
           const newAttachment: Attachment = {
-              name: file.name,
+              name: fileName,
               type: file.type.includes('audio') ? 'audio' : file.type.includes('pdf') ? 'pdf' : file.type.includes('image') ? 'image' : 'other',
               data: base64
           };
@@ -140,8 +148,17 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
           });
       };
       reader.readAsDataURL(file);
-      // Reset input
-      e.target.value = '';
+  };
+
+  const handlePaste = (index: number, e: React.ClipboardEvent) => {
+      // Check if clipboard contains files
+      if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+          e.preventDefault(); // Prevent default paste behavior if it's a file
+          Array.from(e.clipboardData.files).forEach(file => {
+              processFile(index, file as File);
+          });
+      }
+      // If it's text, let it paste normally into the focused field
   };
 
   const removeAttachment = (itemIndex: number, attachIndex: number) => {
@@ -154,8 +171,21 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       });
   };
 
-  const addReminder = () => setFormData(prev => ({ ...prev, reminders: [...(prev.reminders || []), { id: crypto.randomUUID(), date: new Date().toISOString().split('T')[0], note: '', isCompleted: false }] }));
+  const addReminder = () => setFormData(prev => ({ 
+      ...prev, 
+      reminders: [
+          ...(prev.reminders || []), 
+          { 
+              id: crypto.randomUUID(), 
+              date: new Date().toISOString().slice(0, 16), // YYYY-MM-DDTHH:mm
+              note: '', 
+              isCompleted: false 
+          }
+      ] 
+  }));
+  
   const removeReminder = (id: string) => setFormData(prev => ({ ...prev, reminders: (prev.reminders || []).filter(r => r.id !== id) }));
+  
   const updateReminder = (id: string, updates: Partial<Reminder>) => setFormData(prev => ({ ...prev, reminders: (prev.reminders || []).map(r => r.id === id ? { ...r, ...updates } : r) }));
 
   const toggleWorker = (workerId: string) => {
@@ -208,6 +238,14 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     }
   };
 
+  // Helper to ensure valid datetime-local value
+  const getSafeDateValue = (dateStr: string) => {
+      if (!dateStr) return '';
+      // If legacy YYYY-MM-DD, append time
+      if (dateStr.length === 10) return `${dateStr}T09:00`;
+      return dateStr;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100">
@@ -257,6 +295,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                                 placeholder={t.scope} 
                                 value={item.name} 
                                 onChange={(e) => updateItem(i, 'name', e.target.value)} 
+                                onPaste={(e) => handlePaste(i, e)}
                              />
                              <Select 
                                 label={t.tasks.taskType}
@@ -289,6 +328,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                                 placeholder={t.tasks.scriptPlaceholder}
                                 value={item.description || ''}
                                 onChange={(e) => updateItem(i, 'description', e.target.value)}
+                                onPaste={(e) => handlePaste(i, e)}
                             />
                         </div>
 
@@ -329,47 +369,6 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
             </div>
           </div>
 
-          <div className="h-px bg-slate-100 w-full" />
-
-          {/* Team Assignment Section */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Users size={14} /> {t.teamManagement.assignTo}
-            </h3>
-            
-            {workers.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2">
-                    {workers.map(worker => (
-                        <button
-                            key={worker.id}
-                            type="button"
-                            onClick={() => toggleWorker(worker.id)}
-                            className={`p-2 rounded-lg border text-sm font-medium transition-all text-start flex items-center justify-between ${
-                                formData.assignedWorkerIds?.includes(worker.id) 
-                                ? 'bg-primary-50 border-primary-200 text-primary-700' 
-                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                            }`}
-                        >
-                            <span>{worker.name}</span>
-                            {formData.assignedWorkerIds?.includes(worker.id) && <CheckCircle size={14} />}
-                        </button>
-                    ))}
-                </div>
-            ) : (
-                <p className="text-sm text-slate-400 italic">{t.teamManagement.noWorkers}</p>
-            )}
-
-            <div className="pt-2">
-                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{t.teamManagement.instructions}</label>
-                 <textarea 
-                    className="w-full rounded-xl border-slate-200 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm border p-3 outline-none transition-all min-h-[60px]"
-                    placeholder={t.teamManagement.instructionsPlaceholder}
-                    value={formData.teamInstructions}
-                    onChange={(e) => setFormData({ ...formData, teamInstructions: e.target.value })}
-                 />
-            </div>
-          </div>
-
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.remindersAlerts}</h3>
@@ -378,7 +377,12 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
             <div className="space-y-2">
               {formData.reminders?.map(r => (
                 <div key={r.id} className="flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-xl">
-                  <input type="date" value={r.date} onChange={(e) => updateReminder(r.id, { date: e.target.value })} className="text-xs outline-none" />
+                  <input 
+                      type="datetime-local" 
+                      value={getSafeDateValue(r.date)} 
+                      onChange={(e) => updateReminder(r.id, { date: e.target.value })} 
+                      className="text-xs outline-none bg-transparent font-medium text-slate-600"
+                  />
                   <input type="text" value={r.note} onChange={(e) => updateReminder(r.id, { note: e.target.value })} className="flex-1 text-xs outline-none" placeholder="..." />
                   <button type="button" onClick={() => removeReminder(r.id)} className="text-red-400"><Trash2 size={14} /></button>
                 </div>
