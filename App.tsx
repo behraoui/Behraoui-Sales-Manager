@@ -7,6 +7,7 @@ import LoginPage from './components/LoginPage';
 import TeamManager from './components/TeamManager';
 import WorkerDashboard from './components/WorkerDashboard';
 import ChatSystem from './components/ChatSystem';
+import { loadData, saveData } from './services/persistence';
 import { translations } from './translations';
 import { 
   Plus, 
@@ -40,7 +41,9 @@ import {
   FileSpreadsheet,
   ArrowUpDown,
   UserCog,
-  Check
+  Check,
+  Loader2,
+  WifiOff
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -50,10 +53,11 @@ type TimeRange = 'all' | 'today' | 'yesterday' | 'last7Days' | 'thisMonth' | 'la
 type View = 'dashboard' | 'analytics' | 'team';
 
 const App = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('nexus_current_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  // Loading State
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const [language, setLanguage] = useState<'en' | 'ar'>(() => {
     return (localStorage.getItem('nexus_lang') as 'en' | 'ar') || 'en';
@@ -61,78 +65,56 @@ const App = () => {
 
   const t = translations[language];
 
-  // Users State
-  const [users, setUsers] = useState<User[]>(() => {
-      const savedUsers = localStorage.getItem('nexus_users');
-      if (savedUsers) {
-          try {
-              return JSON.parse(savedUsers);
-          } catch (e) { return []; }
-      }
-      // Default Admin
-      return [{
-          id: 'admin-1',
-          username: 'admin',
-          password: 'nexus2025', // Hardcoded initial password
-          name: 'Administrator',
-          role: 'admin',
-          createdAt: new Date().toISOString()
-      }];
-  });
+  // Data States
+  const [users, setUsers] = useState<User[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [globalNotifications, setGlobalNotifications] = useState<GlobalNotification[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
-  // Projects State
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const savedProjects = localStorage.getItem('nexus_projects');
-    if (savedProjects) {
-      try {
-        let loadedProjects: Project[] = JSON.parse(savedProjects);
+  // Initialize Data
+  useEffect(() => {
+    const initData = async () => {
+      setIsLoading(true);
+      
+      // Load saved user session
+      const savedUser = localStorage.getItem('nexus_current_user');
+      if (savedUser) setCurrentUser(JSON.parse(savedUser));
+
+      // Try loading from Cloud DB, fall back to LocalStorage
+      const cloudData = await loadData();
+      
+      if (cloudData) {
+        // Cloud Data Available
+        setProjects(cloudData.projects || []);
+        setUsers(cloudData.users && cloudData.users.length > 0 ? cloudData.users : getDefaultAdmin());
+        setGlobalNotifications(cloudData.notifications || []);
+        setChatMessages(cloudData.messages || []);
+      } else {
+        // Offline / Local Mode
+        setIsOffline(true);
+        setProjects(JSON.parse(localStorage.getItem('nexus_projects') || '[]'));
         
-        // Migration: Assign sequence numbers to existing clients if missing
-        // Assuming clients are stored Newest First (standard behavior of this app)
-        // We want oldest to be #1.
-        return loadedProjects.map(p => {
-            const clients = [...p.clients];
-            let needsUpdate = false;
-            let nextSeq = 1;
-            
-            // Check if any sequence numbers exist to determine start point
-            const existingSeqs = clients.filter(c => c.sequenceNumber).map(c => c.sequenceNumber!);
-            if (existingSeqs.length === 0 && clients.length > 0) {
-                 // No sequence numbers, assign from oldest (end of array) to newest (start of array)
-                 for (let i = clients.length - 1; i >= 0; i--) {
-                     clients[i] = { ...clients[i], sequenceNumber: nextSeq++ };
-                 }
-                 needsUpdate = true;
-            } else if (existingSeqs.length > 0 && existingSeqs.length < clients.length) {
-                // Partial? This is tricky, but let's just ensure everyone has a number
-                // Find max
-                let max = Math.max(...existingSeqs);
-                // Assign to those missing (assuming they are newer if they are at top and missing)
-                for (let i = clients.length - 1; i >= 0; i--) {
-                    if (!clients[i].sequenceNumber) {
-                         clients[i] = { ...clients[i], sequenceNumber: ++max };
-                         needsUpdate = true;
-                    }
-                }
-            }
-            
-            return needsUpdate ? { ...p, clients } : p;
-        });
-      } catch (e) { return []; }
-    }
-    return [];
-  });
+        const savedUsers = JSON.parse(localStorage.getItem('nexus_users') || '[]');
+        setUsers(savedUsers.length > 0 ? savedUsers : getDefaultAdmin());
+        
+        setGlobalNotifications(JSON.parse(localStorage.getItem('nexus_notifications') || '[]'));
+        setChatMessages(JSON.parse(localStorage.getItem('nexus_messages') || '[]'));
+      }
+      
+      setIsLoading(false);
+    };
 
-  // Global Notifications & Chat State
-  const [globalNotifications, setGlobalNotifications] = useState<GlobalNotification[]>(() => {
-    const saved = localStorage.getItem('nexus_notifications');
-    return saved ? JSON.parse(saved) : [];
-  });
+    initData();
+  }, []);
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
-      const saved = localStorage.getItem('nexus_messages');
-      return saved ? JSON.parse(saved) : [];
-  });
+  const getDefaultAdmin = (): User[] => [{
+      id: 'admin-1',
+      username: 'admin',
+      password: 'nexus2025',
+      name: 'Administrator',
+      role: 'admin',
+      createdAt: new Date().toISOString()
+  }];
 
   const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -175,22 +157,22 @@ const App = () => {
   const notificationRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Persistence
+  // Persistence Effects (Save on Change)
   useEffect(() => {
-    localStorage.setItem('nexus_projects', JSON.stringify(projects));
-  }, [projects]);
+    if (!isLoading) saveData('projects', projects);
+  }, [projects, isLoading]);
 
   useEffect(() => {
-    localStorage.setItem('nexus_users', JSON.stringify(users));
-  }, [users]);
+    if (!isLoading) saveData('users', users);
+  }, [users, isLoading]);
 
   useEffect(() => {
-    localStorage.setItem('nexus_notifications', JSON.stringify(globalNotifications));
-  }, [globalNotifications]);
+    if (!isLoading) saveData('notifications', globalNotifications);
+  }, [globalNotifications, isLoading]);
 
   useEffect(() => {
-    localStorage.setItem('nexus_messages', JSON.stringify(chatMessages));
-  }, [chatMessages]);
+    if (!isLoading) saveData('messages', chatMessages);
+  }, [chatMessages, isLoading]);
 
   useEffect(() => {
     if (currentUser) {
@@ -756,6 +738,15 @@ const App = () => {
     );
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
+        <Loader2 className="w-12 h-12 text-primary-600 animate-spin" />
+        <p className="text-slate-500 font-medium animate-pulse">{t.welcomeBack}...</p>
+      </div>
+    );
+  }
+
   if (!currentUser) {
     return <LoginPage onLogin={handleLogin} users={users} lang={language} />;
   }
@@ -772,6 +763,7 @@ const App = () => {
                     <span className="font-bold text-slate-800">Nexus Worker</span>
                 </div>
                 <div className="flex items-center gap-4">
+                    {isOffline && <WifiOff className="text-red-500 w-5 h-5" title="Offline Mode" />}
                     <button onClick={() => setIsChatOpen(true)} className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-600">
                         <MessageCircle size={20} />
                         {chatMessages.filter(m => m.receiverId === currentUser.id && !m.read).length > 0 && 
@@ -958,6 +950,9 @@ const App = () => {
           </div>
           
           <div className="flex items-center gap-3 w-full md:w-auto">
+             {/* Offline Indicator */}
+             {isOffline && <WifiOff className="text-red-500 w-5 h-5 hidden md:block" title="Offline Mode" />}
+
              {/* Chat Button */}
              <button onClick={() => setIsChatOpen(true)} className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 relative">
                 <MessageCircle size={20} className="text-slate-600" />
