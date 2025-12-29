@@ -763,7 +763,11 @@ const App = () => {
                     <span className="font-bold text-slate-800">Nexus Worker</span>
                 </div>
                 <div className="flex items-center gap-4">
-                    {isOffline && <WifiOff className="text-red-500 w-5 h-5" title="Offline Mode" />}
+                    {isOffline && (
+                      <div title="Offline Mode">
+                        <WifiOff className="text-red-500 w-5 h-5" />
+                      </div>
+                    )}
                     <button onClick={() => setIsChatOpen(true)} className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-600">
                         <MessageCircle size={20} />
                         {chatMessages.filter(m => m.receiverId === currentUser.id && !m.read).length > 0 && 
@@ -951,7 +955,11 @@ const App = () => {
           
           <div className="flex items-center gap-3 w-full md:w-auto">
              {/* Offline Indicator */}
-             {isOffline && <WifiOff className="text-red-500 w-5 h-5 hidden md:block" title="Offline Mode" />}
+             {isOffline && (
+               <div title="Offline Mode" className="hidden md:block">
+                 <WifiOff className="text-red-500 w-5 h-5" />
+               </div>
+             )}
 
              {/* Chat Button */}
              <button onClick={() => setIsChatOpen(true)} className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 relative">
