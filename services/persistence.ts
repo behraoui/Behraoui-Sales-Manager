@@ -1,4 +1,3 @@
-
 // Service to handle data persistence with Netlify Database (Blobs)
 // Falls back to LocalStorage if API is unreachable
 
@@ -14,13 +13,16 @@ interface AppData {
 export const loadData = async (): Promise<AppData | null> => {
   try {
     const response = await fetch(API_ENDPOINT);
+    
     if (!response.ok) {
-        // If 404, it means the function doesn't exist (local dev without netlify dev, or not deployed)
-        // If 500, it might mean Blobs are not enabled
+        // If 404, the function doesn't exist (local dev without netlify dev, or not deployed)
         console.warn(`Cloud Database unreachable (Status: ${response.status}). Falling back to local storage.`);
-        throw new Error(`Database Error: ${response.statusText}`);
+        return null;
     }
+    
     const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    
     console.log("Data loaded from Netlify Database");
     return data;
   } catch (error) {
