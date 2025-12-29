@@ -1313,81 +1313,154 @@ const App = () => {
                     </div>
                 </Card>
 
-                <Card className="overflow-hidden border border-slate-200">
-                    <div className="overflow-x-auto">
-                    <table className="w-full text-start border-collapse">
-                        <thead>
-                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
-                            <th className="px-6 py-4">#</th>
-                            <th className="px-6 py-4">{t.client}</th>
-                            <th className="px-6 py-4">{t.leadDate}</th>
-                            <th className="px-6 py-4">{t.status}</th>
-                            <th className="px-6 py-4">{t.scope}</th>
-                            <th className="px-6 py-4">{t.assignedTeam}</th>
-                            <th className="px-6 py-4">{t.paymentStatus}</th>
-                            <th className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>{t.actions}</th>
-                        </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                        {filteredClients.length === 0 ? (
-                            <tr>
-                                <td colSpan={8} className="text-center py-10 text-slate-400 text-sm">{t.noProjectsFound}</td>
+                <div className="space-y-4">
+                    {/* Desktop View: Table */}
+                    <Card className="hidden md:block overflow-hidden border border-slate-200">
+                        <div className="overflow-x-auto">
+                        <table className="w-full text-start border-collapse">
+                            <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
+                                <th className="px-6 py-4">#</th>
+                                <th className="px-6 py-4">{t.client}</th>
+                                <th className="px-6 py-4">{t.leadDate}</th>
+                                <th className="px-6 py-4">{t.status}</th>
+                                <th className="px-6 py-4">{t.scope}</th>
+                                <th className="px-6 py-4">{t.assignedTeam}</th>
+                                <th className="px-6 py-4">{t.paymentStatus}</th>
+                                <th className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>{t.actions}</th>
                             </tr>
-                        ) : filteredClients.map((client) => {
-                            const paidCount = (client.items || []).filter(i => i.isPaid).length;
-                            const totalCount = (client.items || []).length;
-                            const assignedWorkers = users.filter(u => client.assignedWorkerIds?.includes(u.id));
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                            {filteredClients.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className="text-center py-10 text-slate-400 text-sm">{t.noProjectsFound}</td>
+                                </tr>
+                            ) : filteredClients.map((client) => {
+                                const paidCount = (client.items || []).filter(i => i.isPaid).length;
+                                const totalCount = (client.items || []).length;
+                                const assignedWorkers = users.filter(u => client.assignedWorkerIds?.includes(u.id));
 
-                            return (
-                            <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
-                                <td className="px-6 py-4 text-sm font-bold text-slate-400">
-                                    #{client.sequenceNumber || '-'}
-                                </td>
-                                <td className="px-6 py-4">
-                                <div className="font-bold text-slate-800 text-sm">{client.clientName}</div>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <div className="text-xs text-slate-500">{client.phoneNumber}</div>
-                                    {client.phoneNumber && (
-                                        <button onClick={() => handleWhatsApp(client.phoneNumber)} className="text-green-500 hover:text-green-600 bg-green-50 p-1 rounded-full hover:bg-green-100 transition-colors" title={t.whatsapp}>
-                                            <MessageCircle size={12} />
-                                        </button>
-                                    )}
-                                </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">{client.leadDate}</span>
-                                </td>
-                                <td className="px-6 py-4"><StatusBadge status={client.status} lang={language} /></td>
-                                <td className="px-6 py-4"><ServiceBadge type={client.serviceType} lang={language} /></td>
-                                <td className="px-6 py-4">
-                                    <div className="flex -space-x-2 rtl:space-x-reverse">
-                                        {assignedWorkers.length > 0 ? assignedWorkers.map(w => (
-                                            <div key={w.id} className="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-blue-700" title={w.name}>
-                                                {w.name.charAt(0)}
-                                            </div>
-                                        )) : <span className="text-xs text-slate-400 italic">-</span>}
+                                return (
+                                <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
+                                    <td className="px-6 py-4 text-sm font-bold text-slate-400">
+                                        #{client.sequenceNumber || '-'}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                    <div className="font-bold text-slate-800 text-sm">{client.clientName}</div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <div className="text-xs text-slate-500">{client.phoneNumber}</div>
+                                        {client.phoneNumber && (
+                                            <button onClick={() => handleWhatsApp(client.phoneNumber)} className="text-green-500 hover:text-green-600 bg-green-50 p-1 rounded-full hover:bg-green-100 transition-colors" title={t.whatsapp}>
+                                                <MessageCircle size={12} />
+                                            </button>
+                                        )}
                                     </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                <PaymentStatusBadge paidCount={paidCount} totalCount={totalCount} lang={language} />
-                                <div className="mt-2 text-xs text-slate-500">
-                                    {(client.price * paidCount).toLocaleString()} / {(client.price * totalCount).toLocaleString()} {t.mad}
-                                </div>
-                                </td>
-                                <td className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>
-                                <div className={`flex items-center ${language === 'ar' ? 'justify-start' : 'justify-end'} space-x-1 rtl:space-x-reverse`}>
-                                    <button onClick={() => { setCopilotSale(client); setIsCopilotOpen(true); }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded"><Bot size={16} /></button>
-                                    <button onClick={() => { setEditingSale(client); setIsFormOpen(true); }} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"><MoreVertical size={16} /></button>
-                                    <button onClick={() => handleDeleteClient(client.id, client.clientName)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
-                                </div>
-                                </td>
-                            </tr>
-                            );
+                                    </td>
+                                    <td className="px-6 py-4">
+                                    <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">{client.leadDate}</span>
+                                    </td>
+                                    <td className="px-6 py-4"><StatusBadge status={client.status} lang={language} /></td>
+                                    <td className="px-6 py-4"><ServiceBadge type={client.serviceType} lang={language} /></td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex -space-x-2 rtl:space-x-reverse">
+                                            {assignedWorkers.length > 0 ? assignedWorkers.map(w => (
+                                                <div key={w.id} className="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-blue-700" title={w.name}>
+                                                    {w.name.charAt(0)}
+                                                </div>
+                                            )) : <span className="text-xs text-slate-400 italic">-</span>}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                    <PaymentStatusBadge paidCount={paidCount} totalCount={totalCount} lang={language} />
+                                    <div className="mt-2 text-xs text-slate-500">
+                                        {(client.price * paidCount).toLocaleString()} / {(client.price * totalCount).toLocaleString()} {t.mad}
+                                    </div>
+                                    </td>
+                                    <td className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>
+                                    <div className={`flex items-center ${language === 'ar' ? 'justify-start' : 'justify-end'} space-x-1 rtl:space-x-reverse`}>
+                                        <button onClick={() => { setCopilotSale(client); setIsCopilotOpen(true); }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded"><Bot size={16} /></button>
+                                        <button onClick={() => { setEditingSale(client); setIsFormOpen(true); }} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"><MoreVertical size={16} /></button>
+                                        <button onClick={() => handleDeleteClient(client.id, client.clientName)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+                                    </div>
+                                    </td>
+                                </tr>
+                                );
+                            })}
+                            </tbody>
+                        </table>
+                        </div>
+                    </Card>
+
+                    {/* Mobile View: Cards */}
+                    <div className="md:hidden space-y-4">
+                        {filteredClients.length === 0 ? (
+                            <div className="text-center py-10 text-slate-400 text-sm">{t.noProjectsFound}</div>
+                        ) : filteredClients.map((client) => {
+                             const paidCount = (client.items || []).filter(i => i.isPaid).length;
+                             const totalCount = (client.items || []).length;
+                             const assignedWorkers = users.filter(u => client.assignedWorkerIds?.includes(u.id));
+                             return (
+                                 <Card key={client.id} className="p-4 border border-slate-200">
+                                     {/* Mobile Card Content */}
+                                     <div className="flex justify-between items-start mb-3">
+                                         <div>
+                                             <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-slate-400">#{client.sequenceNumber || '-'}</span>
+                                                <h3 className="font-bold text-slate-800">{client.clientName}</h3>
+                                             </div>
+                                             <div className="flex items-center gap-2 mt-1">
+                                                 <div className="text-xs text-slate-500">{client.phoneNumber}</div>
+                                                  {client.phoneNumber && (
+                                                        <button onClick={() => handleWhatsApp(client.phoneNumber)} className="text-green-500 bg-green-50 p-1 rounded-full" title={t.whatsapp}>
+                                                            <MessageCircle size={12} />
+                                                        </button>
+                                                    )}
+                                             </div>
+                                         </div>
+                                         <StatusBadge status={client.status} lang={language} />
+                                     </div>
+                                     
+                                     <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                                         <div>
+                                             <p className="text-xs text-slate-400">{t.serviceType}</p>
+                                             <div className="mt-1"><ServiceBadge type={client.serviceType} lang={language} /></div>
+                                         </div>
+                                         <div>
+                                             <p className="text-xs text-slate-400">{t.leadDate}</p>
+                                             <p className="font-medium text-slate-700 mt-1">{client.leadDate}</p>
+                                         </div>
+                                     </div>
+
+                                     <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg mb-4">
+                                         <div>
+                                             <p className="text-xs text-slate-400 mb-1">{t.paymentStatus}</p>
+                                             <PaymentStatusBadge paidCount={paidCount} totalCount={totalCount} lang={language} />
+                                         </div>
+                                         <div className="text-right">
+                                             <p className="text-xs text-slate-400 mb-1">Total</p>
+                                             <p className="font-bold text-slate-800">{(client.price * paidCount).toLocaleString()} <span className="text-[10px] font-normal text-slate-500">/ {(client.price * totalCount).toLocaleString()} {t.mad}</span></p>
+                                         </div>
+                                     </div>
+
+                                     <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                                         <div className="flex -space-x-2 rtl:space-x-reverse">
+                                            {assignedWorkers.length > 0 ? assignedWorkers.map(w => (
+                                                <div key={w.id} className="w-6 h-6 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-blue-700">
+                                                    {w.name.charAt(0)}
+                                                </div>
+                                            )) : <span className="text-xs text-slate-400 italic">-</span>}
+                                         </div>
+                                         <div className="flex items-center space-x-1 rtl:space-x-reverse">
+                                            <button onClick={() => { setCopilotSale(client); setIsCopilotOpen(true); }} className="p-2 text-primary-600 bg-primary-50 rounded-lg"><Bot size={16} /></button>
+                                            <button onClick={() => { setEditingSale(client); setIsFormOpen(true); }} className="p-2 text-slate-600 bg-slate-100 rounded-lg"><MoreVertical size={16} /></button>
+                                            <button onClick={() => handleDeleteClient(client.id, client.clientName)} className="p-2 text-red-600 bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                                         </div>
+                                     </div>
+                                 </Card>
+                             );
                         })}
-                        </tbody>
-                    </table>
                     </div>
-                </Card>
+                </div>
             </div>
         )}
       </main>
