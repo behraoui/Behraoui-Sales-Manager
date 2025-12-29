@@ -81,6 +81,7 @@ export interface SaleItem {
 // 'Sale' now represents a Client/Job within a Project
 export interface Sale {
   id: string;
+  sequenceNumber?: number; // Auto-incrementing order ID
   clientName: string;
   phoneNumber: string;
   serviceType: ServiceType;

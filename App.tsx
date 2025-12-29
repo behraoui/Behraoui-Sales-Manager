@@ -85,7 +85,39 @@ const App = () => {
     const savedProjects = localStorage.getItem('nexus_projects');
     if (savedProjects) {
       try {
-        return JSON.parse(savedProjects);
+        let loadedProjects: Project[] = JSON.parse(savedProjects);
+        
+        // Migration: Assign sequence numbers to existing clients if missing
+        // Assuming clients are stored Newest First (standard behavior of this app)
+        // We want oldest to be #1.
+        return loadedProjects.map(p => {
+            const clients = [...p.clients];
+            let needsUpdate = false;
+            let nextSeq = 1;
+            
+            // Check if any sequence numbers exist to determine start point
+            const existingSeqs = clients.filter(c => c.sequenceNumber).map(c => c.sequenceNumber!);
+            if (existingSeqs.length === 0 && clients.length > 0) {
+                 // No sequence numbers, assign from oldest (end of array) to newest (start of array)
+                 for (let i = clients.length - 1; i >= 0; i--) {
+                     clients[i] = { ...clients[i], sequenceNumber: nextSeq++ };
+                 }
+                 needsUpdate = true;
+            } else if (existingSeqs.length > 0 && existingSeqs.length < clients.length) {
+                // Partial? This is tricky, but let's just ensure everyone has a number
+                // Find max
+                let max = Math.max(...existingSeqs);
+                // Assign to those missing (assuming they are newer if they are at top and missing)
+                for (let i = clients.length - 1; i >= 0; i--) {
+                    if (!clients[i].sequenceNumber) {
+                         clients[i] = { ...clients[i], sequenceNumber: ++max };
+                         needsUpdate = true;
+                    }
+                }
+            }
+            
+            return needsUpdate ? { ...p, clients } : p;
+        });
       } catch (e) { return []; }
     }
     return [];
@@ -653,10 +685,15 @@ const App = () => {
         
         const clientExists = p.clients.find(c => c.id === client.id);
         let updatedClients;
+        
         if (clientExists) {
-            updatedClients = p.clients.map(c => c.id === client.id ? client : c);
+            // Edit existing: Preserve sequenceNumber
+            updatedClients = p.clients.map(c => c.id === client.id ? { ...client, sequenceNumber: c.sequenceNumber } : c);
         } else {
-            updatedClients = [client, ...p.clients];
+            // New client: Assign next sequenceNumber
+            const maxSeq = p.clients.reduce((max, c) => Math.max(max, c.sequenceNumber || 0), 0);
+            const newClient = { ...client, sequenceNumber: maxSeq + 1 };
+            updatedClients = [newClient, ...p.clients];
         }
         return { ...p, clients: updatedClients };
     }));
@@ -1281,6 +1318,7 @@ const App = () => {
                     <table className="w-full text-start border-collapse">
                         <thead>
                         <tr className="bg-slate-50 text-slate-500 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
+                            <th className="px-6 py-4">#</th>
                             <th className="px-6 py-4">{t.client}</th>
                             <th className="px-6 py-4">{t.leadDate}</th>
                             <th className="px-6 py-4">{t.status}</th>
@@ -1293,7 +1331,7 @@ const App = () => {
                         <tbody className="divide-y divide-slate-50">
                         {filteredClients.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="text-center py-10 text-slate-400 text-sm">{t.noProjectsFound}</td>
+                                <td colSpan={8} className="text-center py-10 text-slate-400 text-sm">{t.noProjectsFound}</td>
                             </tr>
                         ) : filteredClients.map((client) => {
                             const paidCount = (client.items || []).filter(i => i.isPaid).length;
@@ -1302,6 +1340,9 @@ const App = () => {
 
                             return (
                             <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
+                                <td className="px-6 py-4 text-sm font-bold text-slate-400">
+                                    #{client.sequenceNumber || '-'}
+                                </td>
                                 <td className="px-6 py-4">
                                 <div className="font-bold text-slate-800 text-sm">{client.clientName}</div>
                                 <div className="flex items-center gap-2 mt-1">
