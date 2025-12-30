@@ -1239,6 +1239,134 @@ const App = () => {
            </div>
         )}
 
+        {/* --- PROJECT DETAIL VIEW (ACTIVE PROJECT) --- */}
+        {currentView === 'dashboard' && activeProjectId && (
+          <div className="animate-fade-in bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-180px)]">
+             {/* Toolbar */}
+             <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50">
+                 {/* Filters */}
+                 <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+                    <div className="relative flex-1 md:w-64">
+                        <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-2.5 text-slate-400`} size={18} />
+                        <input 
+                            type="text" 
+                            placeholder={t.searchPlaceholder} 
+                            value={searchTerm} 
+                            onChange={(e) => setSearchTerm(e.target.value)} 
+                            className={`w-full ${language === 'ar' ? 'pr-10' : 'pl-10'} py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-primary-500`}
+                        />
+                    </div>
+                    
+                    <select 
+                        className="py-2 px-3 rounded-lg border border-slate-200 text-sm outline-none bg-white cursor-pointer hover:border-slate-300"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                        <option value="All">{t.allStatuses}</option>
+                        {Object.values(SaleStatus).map(s => <option key={s} value={s}>{t.statuses[s]}</option>)}
+                    </select>
+
+                    <select 
+                        className="py-2 px-3 rounded-lg border border-slate-200 text-sm outline-none bg-white cursor-pointer hover:border-slate-300"
+                        value={paymentFilter}
+                        onChange={(e) => setPaymentFilter(e.target.value)}
+                    >
+                        <option value="All">{t.allPayments}</option>
+                        <option value="Fully Paid">{t.fullyPaid}</option>
+                        <option value="Partially Paid">{t.partiallyPaid}</option>
+                        <option value="Unpaid">{t.unpaid}</option>
+                    </select>
+                    
+                    <button 
+                        onClick={() => setSortOrder(prev => prev === 'dateDesc' ? 'paymentStatus' : 'dateDesc')}
+                        className="p-2 border border-slate-200 rounded-lg bg-white text-slate-500 hover:text-primary-600"
+                        title={t.sortBy}
+                    >
+                        <ArrowUpDown size={18} />
+                    </button>
+                 </div>
+             </div>
+
+             {/* Table / List */}
+             <div className="flex-1 overflow-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>#</th>
+                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.client}</th>
+                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.serviceType}</th>
+                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.status}</th>
+                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.paymentStatus}</th>
+                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.leadDate}</th>
+                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.actions}</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {filteredClients.map((client) => {
+                             const paidItems = client.items.filter(i => i.isPaid).length;
+                             const totalItems = client.items.length;
+                             
+                             return (
+                                <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
+                                    <td className="p-4 text-xs font-medium text-slate-400">
+                                        {client.sequenceNumber || '-'}
+                                        {client.hasClientModifications && (
+                                            <div className="mt-1">
+                                                <ModificationBadge lang={language} />
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="font-bold text-slate-800 text-sm">{client.clientName}</div>
+                                        <div className="text-xs text-slate-400 font-mono">{client.phoneNumber}</div>
+                                    </td>
+                                    <td className="p-4">
+                                        <ServiceBadge type={client.serviceType} lang={language} />
+                                    </td>
+                                    <td className="p-4">
+                                        <StatusBadge status={client.status} lang={language} />
+                                    </td>
+                                    <td className="p-4">
+                                         <div className="flex flex-col gap-1 items-start">
+                                            <PaymentStatusBadge paidCount={paidItems} totalCount={totalItems} lang={language} />
+                                            <span className="text-[10px] text-slate-400 font-medium">
+                                                {(client.price * paidItems).toLocaleString()} / {(client.price * totalItems).toLocaleString()} {t.mad}
+                                            </span>
+                                         </div>
+                                    </td>
+                                    <td className="p-4 text-sm text-slate-600">
+                                        {new Date(client.leadDate).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')}
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => { setCopilotSale(client); setIsCopilotOpen(true); }} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title={t.aiAssistant}>
+                                                <Bot size={16} />
+                                            </button>
+                                            <button onClick={() => handleWhatsApp(client.phoneNumber)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title={t.whatsapp}>
+                                                <MessageCircle size={16} />
+                                            </button>
+                                            <button onClick={() => { setEditingSale(client); setIsFormOpen(true); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title={t.editProject}>
+                                                <Edit2 size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                             );
+                        })}
+                        
+                        {filteredClients.length === 0 && (
+                            <tr>
+                                <td colSpan={7} className="p-8 text-center text-slate-400 text-sm italic">
+                                    No clients found.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+             </div>
+          </div>
+        )}
+
         {/* --- DASHBOARD VIEW (NO ACTIVE PROJECT) --- */}
         {currentView === 'dashboard' && !activeProjectId && (
             <div className="animate-fade-in">
