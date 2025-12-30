@@ -1268,7 +1268,7 @@ const App = () => {
 
         {/* --- PROJECT DETAIL VIEW (ACTIVE PROJECT) --- */}
         {currentView === 'dashboard' && activeProjectId && (
-          <div className="animate-fade-in bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-180px)]">
+          <div className="animate-fade-in bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
              {/* Toolbar */}
              <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50">
                  {/* Filters */}
@@ -1315,7 +1315,7 @@ const App = () => {
              </div>
 
              {/* Creative Table */}
-             <div className="flex-1 overflow-auto px-4 pb-4">
+             <div className="overflow-auto px-4 pb-4" style={{ maxHeight: '1650px' }}>
                 <table className="w-full border-separate border-spacing-y-3">
                     <thead>
                         <tr className="text-sm text-slate-400">
