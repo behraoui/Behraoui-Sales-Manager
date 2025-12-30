@@ -43,7 +43,8 @@ import {
   UserCog,
   Check,
   Loader2,
-  WifiOff
+  WifiOff,
+  Phone
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -51,6 +52,32 @@ const COLORS = ['#0ea5e9', '#ec4899', '#f97316', '#10b981', '#6366f1'];
 
 type TimeRange = 'all' | 'today' | 'yesterday' | 'last7Days' | 'thisMonth' | 'lastMonth' | 'custom';
 type View = 'dashboard' | 'analytics' | 'team';
+
+// Helper for random avatar colors
+const getAvatarColor = (name: string) => {
+    const colors = [
+        'from-red-400 to-red-600',
+        'from-orange-400 to-orange-600',
+        'from-amber-400 to-amber-600',
+        'from-green-400 to-green-600',
+        'from-emerald-400 to-emerald-600',
+        'from-teal-400 to-teal-600',
+        'from-cyan-400 to-cyan-600',
+        'from-sky-400 to-sky-600',
+        'from-blue-400 to-blue-600',
+        'from-indigo-400 to-indigo-600',
+        'from-violet-400 to-violet-600',
+        'from-purple-400 to-purple-600',
+        'from-fuchsia-400 to-fuchsia-600',
+        'from-pink-400 to-pink-600',
+        'from-rose-400 to-rose-600'
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+};
 
 const App = () => {
   // Loading State
@@ -1287,65 +1314,102 @@ const App = () => {
                  </div>
              </div>
 
-             {/* Table / List */}
-             <div className="flex-1 overflow-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
-                        <tr>
-                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>#</th>
-                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.client}</th>
-                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.serviceType}</th>
-                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.status}</th>
-                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.paymentStatus}</th>
-                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.leadDate}</th>
-                            <th className={`p-4 text-xs font-bold text-slate-500 uppercase tracking-wider ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.actions}</th>
+             {/* Creative Table */}
+             <div className="flex-1 overflow-auto px-4 pb-4">
+                <table className="w-full border-separate border-spacing-y-3">
+                    <thead>
+                        <tr className="text-sm text-slate-400">
+                            <th className={`font-medium py-2 px-4 ${language === 'ar' ? 'text-right' : 'text-left'}`}>#</th>
+                            <th className={`font-medium py-2 px-4 ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.client}</th>
+                            <th className={`font-medium py-2 px-4 hidden md:table-cell ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.serviceType}</th>
+                            <th className={`font-medium py-2 px-4 ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.status}</th>
+                            <th className={`font-medium py-2 px-4 hidden md:table-cell ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.paymentStatus}</th>
+                            <th className={`font-medium py-2 px-4 hidden lg:table-cell ${language === 'ar' ? 'text-right' : 'text-left'}`}>{t.leadDate}</th>
+                            <th className={`font-medium py-2 px-4 ${language === 'ar' ? 'text-left' : 'text-right'}`}>{t.actions}</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {filteredClients.map((client) => {
+                    <tbody>
+                        {filteredClients.map((client, index) => {
                              const paidItems = client.items.filter(i => i.isPaid).length;
                              const totalItems = client.items.length;
+                             const progress = totalItems > 0 ? (paidItems / totalItems) * 100 : 0;
                              
                              return (
-                                <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
-                                    <td className="p-4 text-xs font-medium text-slate-400">
-                                        {client.sequenceNumber || '-'}
-                                        {client.hasClientModifications && (
-                                            <div className="mt-1">
-                                                <ModificationBadge lang={language} />
-                                            </div>
-                                        )}
+                                <tr 
+                                  key={client.id} 
+                                  className="bg-white hover:bg-slate-50 shadow-sm hover:shadow-md transition-all duration-300 rounded-xl group relative transform hover:-translate-y-0.5"
+                                >
+                                    {/* Sequence & Modification Badge */}
+                                    <td className={`py-4 px-4 ${language === 'ar' ? 'rounded-r-xl border-r' : 'rounded-l-xl border-l'} align-middle border-y border-slate-100 group-hover:border-primary-100`}>
+                                       <div className="flex flex-col items-start gap-1">
+                                         <span className="font-mono text-xs text-slate-400">#{client.sequenceNumber || index + 1}</span>
+                                         {client.hasClientModifications && <ModificationBadge lang={language} />}
+                                       </div>
                                     </td>
-                                    <td className="p-4">
-                                        <div className="font-bold text-slate-800 text-sm">{client.clientName}</div>
-                                        <div className="text-xs text-slate-400 font-mono">{client.phoneNumber}</div>
+
+                                    {/* Client Info with Avatar */}
+                                    <td className="py-4 px-4 align-middle border-y border-slate-100 group-hover:border-primary-100">
+                                      <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm bg-gradient-to-br ${getAvatarColor(client.clientName)}`}>
+                                          {client.clientName.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                          <div className="font-bold text-slate-800 text-sm">{client.clientName}</div>
+                                          <div className="text-xs text-slate-400 flex items-center gap-1">
+                                            <Phone size={10} /> {client.phoneNumber}
+                                          </div>
+                                        </div>
+                                      </div>
                                     </td>
-                                    <td className="p-4">
-                                        <ServiceBadge type={client.serviceType} lang={language} />
+
+                                    {/* Service Type */}
+                                    <td className="py-4 px-4 align-middle border-y border-slate-100 group-hover:border-primary-100 hidden md:table-cell">
+                                       <ServiceBadge type={client.serviceType} lang={language} />
                                     </td>
-                                    <td className="p-4">
-                                        <StatusBadge status={client.status} lang={language} />
+
+                                    {/* Status */}
+                                    <td className="py-4 px-4 align-middle border-y border-slate-100 group-hover:border-primary-100">
+                                       <StatusBadge status={client.status} lang={language} />
                                     </td>
-                                    <td className="p-4">
-                                         <div className="flex flex-col gap-1 items-start">
-                                            <PaymentStatusBadge paidCount={paidItems} totalCount={totalItems} lang={language} />
-                                            <span className="text-[10px] text-slate-400 font-medium">
-                                                {(client.price * paidItems).toLocaleString()} / {(client.price * totalItems).toLocaleString()} {t.mad}
-                                            </span>
-                                         </div>
+
+                                    {/* Payment Progress Bar */}
+                                    <td className="py-4 px-4 align-middle border-y border-slate-100 group-hover:border-primary-100 hidden md:table-cell min-w-[140px]">
+                                       <div className="flex flex-col gap-1.5">
+                                          <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                                             <span className={progress === 100 ? 'text-emerald-600' : 'text-slate-500'}>
+                                                {progress === 100 ? t.fullyPaid : `${Math.round(progress)}%`}
+                                             </span>
+                                             <span className="text-slate-400">
+                                                {(client.price * paidItems).toLocaleString()} / {(client.price * totalItems).toLocaleString()}
+                                             </span>
+                                          </div>
+                                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                             <div 
+                                                className={`h-full rounded-full transition-all duration-500 ${progress === 100 ? 'bg-emerald-500' : progress > 0 ? 'bg-amber-400' : 'bg-slate-200'}`} 
+                                                style={{ width: `${progress}%` }}
+                                             />
+                                          </div>
+                                       </div>
                                     </td>
-                                    <td className="p-4 text-sm text-slate-600">
-                                        {new Date(client.leadDate).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')}
+
+                                    {/* Date */}
+                                    <td className="py-4 px-4 align-middle border-y border-slate-100 group-hover:border-primary-100 hidden lg:table-cell">
+                                       <div className="text-sm text-slate-500 flex items-center gap-1.5">
+                                          <Calendar size={14} className="text-slate-300" />
+                                          {new Date(client.leadDate).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')}
+                                       </div>
                                     </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => { setCopilotSale(client); setIsCopilotOpen(true); }} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors" title={t.aiAssistant}>
+
+                                    {/* Actions */}
+                                    <td className={`py-4 px-4 ${language === 'ar' ? 'rounded-l-xl border-l text-left' : 'rounded-r-xl border-r text-right'} align-middle border-y border-slate-100 group-hover:border-primary-100`}>
+                                        <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 transform ${language === 'ar' ? '-translate-x-2' : 'translate-x-2'} group-hover:translate-x-0 justify-end`}>
+                                            <button onClick={(e) => {e.stopPropagation(); setCopilotSale(client); setIsCopilotOpen(true);}} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-purple-600 hover:border-purple-200 rounded-xl shadow-sm hover:shadow-md transition-all" title={t.aiAssistant}>
                                                 <Bot size={16} />
                                             </button>
-                                            <button onClick={() => handleWhatsApp(client.phoneNumber)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title={t.whatsapp}>
+                                            <button onClick={(e) => {e.stopPropagation(); handleWhatsApp(client.phoneNumber);}} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-green-600 hover:border-green-200 rounded-xl shadow-sm hover:shadow-md transition-all" title={t.whatsapp}>
                                                 <MessageCircle size={16} />
                                             </button>
-                                            <button onClick={() => { setEditingSale(client); setIsFormOpen(true); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title={t.editProject}>
+                                            <button onClick={(e) => {e.stopPropagation(); setEditingSale(client); setIsFormOpen(true);}} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 rounded-xl shadow-sm hover:shadow-md transition-all" title={t.editProject}>
                                                 <Edit2 size={16} />
                                             </button>
                                         </div>
@@ -1353,16 +1417,18 @@ const App = () => {
                                 </tr>
                              );
                         })}
-                        
-                        {filteredClients.length === 0 && (
-                            <tr>
-                                <td colSpan={7} className="p-8 text-center text-slate-400 text-sm italic">
-                                    No clients found.
-                                </td>
-                            </tr>
-                        )}
                     </tbody>
                 </table>
+                
+                {filteredClients.length === 0 && (
+                    <div className="p-12 text-center flex flex-col items-center justify-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200 mt-4">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                            <Search size={24} className="opacity-50" />
+                        </div>
+                        <p className="font-medium">No clients found matching your search.</p>
+                        <p className="text-sm mt-1">Try adjusting your filters or create a new client.</p>
+                    </div>
+                )}
              </div>
           </div>
         )}
