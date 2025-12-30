@@ -1,3 +1,4 @@
+
 import { SaleStatus, ServiceType, TaskType } from './types';
 
 export const translations = {
@@ -103,6 +104,8 @@ export const translations = {
     servicesDistribution: 'Services Distribution',
     conversionRate: 'Conversion Rate',
     itemStatus: 'Item Status',
+    clientModification: 'New Modification',
+    markAsModification: 'Mark as Client Modification',
     itemStatuses: {
       Pending: 'Pending',
       'In Progress': 'In Progress',
@@ -268,6 +271,8 @@ export const translations = {
     servicesDistribution: 'توزيع الخدمات',
     conversionRate: 'معدل التحويل',
     itemStatus: 'حالة العنصر',
+    clientModification: 'تعديل جديد',
+    markAsModification: 'تحديد كتعديل من العميل',
     itemStatuses: {
       Pending: 'قيد الانتظار',
       'In Progress': 'قيد العمل',

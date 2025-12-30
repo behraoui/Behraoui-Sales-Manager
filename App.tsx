@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Sale, SaleStatus, Project, ServiceType, User, UserRole, ItemStatus, Reminder, GlobalNotification, ChatMessage } from './types';
-import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge, Input, Select } from './components/UIComponents';
+import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge, Input, Select, ModificationBadge } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
 import Copilot from './components/Copilot';
 import LoginPage from './components/LoginPage';
@@ -636,6 +636,10 @@ const App = () => {
 
     // Sorting Logic
     return result.sort((a, b) => {
+      // Priority: Client Modification
+      if (a.hasClientModifications && !b.hasClientModifications) return -1;
+      if (!a.hasClientModifications && b.hasClientModifications) return 1;
+
       if (sortOrder === 'paymentStatus') {
          const getScore = (client: Sale) => {
             const total = client.items.length;
@@ -1260,267 +1264,76 @@ const App = () => {
 
                 {/* Projects Grid Search */}
                 <div className="relative mb-6">
-                    <Search className={`absolute ${language === 'ar' ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 text-slate-400`} size={20} />
+                    <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-3.5 text-slate-400`} size={20} />
                     <input 
                         type="text" 
                         placeholder={t.searchProjects} 
-                        className={`w-full ${language === 'ar' ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3 rounded-2xl border border-slate-200 bg-white focus:ring-2 focus:ring-primary-100 outline-none transition-all shadow-sm`} 
                         value={searchTerm} 
                         onChange={(e) => setSearchTerm(e.target.value)} 
+                        className={`w-full ${language === 'ar' ? 'pr-10' : 'pl-10'} p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-primary-100 transition-all`}
                     />
                 </div>
 
-                {/* Projects Grid */}
-                {filteredProjects.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredProjects.map(renderProjectCard)}
-                    </div>
-                ) : (
-                    <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
-                        <FolderKanban className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                        <h3 className="text-lg font-medium text-slate-900">{t.noProjectsFound}</h3>
-                        <Button variant="ghost" className="mt-2" onClick={() => setIsProjectModalOpen(true)}>{t.createProject}</Button>
-                    </div>
-                )}
-            </div>
-        )}
-
-        {/* --- PROJECT DETAIL VIEW --- */}
-        {activeProjectId && (
-            <div className="animate-fade-in space-y-6">
-                 {/* Filtering Bar */}
-                <Card className="p-4 border border-slate-200">
-                    <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
-                        <div className="relative w-full lg:w-1/3">
-                        <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-slate-400`} size={16} />
-                        <input type="text" placeholder={t.searchPlaceholder} className={`w-full ${language === 'ar' ? 'pr-9 pl-4' : 'pl-9 pr-4'} py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white outline-none text-sm transition-all`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredProjects.length === 0 ? (
+                         <div className="col-span-full py-12 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+                            <FolderKanban size={48} className="mx-auto mb-4 opacity-50" />
+                            <p>{t.noProjectsFound}</p>
+                            <Button variant="ghost" onClick={() => setIsProjectModalOpen(true)} className="mt-2 text-primary-600">
+                                {t.createProject}
+                            </Button>
                         </div>
-                        
-                        <div className="flex flex-wrap gap-2 w-full lg:w-auto items-center">
-                        <select className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
-                            <option value="dateDesc">{t.sortOptions.dateNewest}</option>
-                            <option value="paymentStatus">{t.sortOptions.paymentStatus}</option>
-                        </select>
-
-                        <select className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                            <option value="All">{t.allStatuses}</option>
-                            {Object.values(SaleStatus).map(s => <option key={s} value={s}>{t.statuses[s]}</option>)}
-                        </select>
-                        <select className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}>
-                            <option value="All">{t.allPayments}</option>
-                            <option value="Fully Paid">{t.fullyPaid}</option>
-                            <option value="Partially Paid">{t.partiallyPaid}</option>
-                            <option value="Unpaid">{t.unpaid}</option>
-                        </select>
-                        </div>
-                    </div>
-                </Card>
-
-                <div className="space-y-4">
-                    {/* Desktop View: Table */}
-                    <Card className="hidden md:block overflow-hidden border border-slate-200">
-                        <div className="overflow-x-auto">
-                        <table className="w-full text-start border-collapse">
-                            <thead>
-                            <tr className="bg-slate-50 text-slate-500 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
-                                <th className="px-6 py-4">#</th>
-                                <th className="px-6 py-4">{t.client}</th>
-                                <th className="px-6 py-4">{t.leadDate}</th>
-                                <th className="px-6 py-4">{t.status}</th>
-                                <th className="px-6 py-4">{t.scope}</th>
-                                <th className="px-6 py-4">{t.assignedTeam}</th>
-                                <th className="px-6 py-4">{t.paymentStatus}</th>
-                                <th className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>{t.actions}</th>
-                            </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                            {filteredClients.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="text-center py-10 text-slate-400 text-sm">{t.noProjectsFound}</td>
-                                </tr>
-                            ) : filteredClients.map((client) => {
-                                const paidCount = (client.items || []).filter(i => i.isPaid).length;
-                                const totalCount = (client.items || []).length;
-                                const assignedWorkers = users.filter(u => client.assignedWorkerIds?.includes(u.id));
-
-                                return (
-                                <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
-                                    <td className="px-6 py-4 text-sm font-bold text-slate-400">
-                                        #{client.sequenceNumber || '-'}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                    <div className="font-bold text-slate-800 text-sm">{client.clientName}</div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <div className="text-xs text-slate-500">{client.phoneNumber}</div>
-                                        {client.phoneNumber && (
-                                            <button onClick={() => handleWhatsApp(client.phoneNumber)} className="text-green-500 hover:text-green-600 bg-green-50 p-1 rounded-full hover:bg-green-100 transition-colors" title={t.whatsapp}>
-                                                <MessageCircle size={12} />
-                                            </button>
-                                        )}
-                                    </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                    <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">{client.leadDate}</span>
-                                    </td>
-                                    <td className="px-6 py-4"><StatusBadge status={client.status} lang={language} /></td>
-                                    <td className="px-6 py-4"><ServiceBadge type={client.serviceType} lang={language} /></td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex -space-x-2 rtl:space-x-reverse">
-                                            {assignedWorkers.length > 0 ? assignedWorkers.map(w => (
-                                                <div key={w.id} className="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-blue-700" title={w.name}>
-                                                    {w.name.charAt(0)}
-                                                </div>
-                                            )) : <span className="text-xs text-slate-400 italic">-</span>}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                    <PaymentStatusBadge paidCount={paidCount} totalCount={totalCount} lang={language} />
-                                    <div className="mt-2 text-xs text-slate-500">
-                                        {(client.price * paidCount).toLocaleString()} / {(client.price * totalCount).toLocaleString()} {t.mad}
-                                    </div>
-                                    </td>
-                                    <td className={`px-6 py-4 text-${language === 'ar' ? 'left' : 'right'}`}>
-                                    <div className={`flex items-center ${language === 'ar' ? 'justify-start' : 'justify-end'} space-x-1 rtl:space-x-reverse`}>
-                                        <button onClick={() => { setCopilotSale(client); setIsCopilotOpen(true); }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded"><Bot size={16} /></button>
-                                        <button onClick={() => { setEditingSale(client); setIsFormOpen(true); }} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"><MoreVertical size={16} /></button>
-                                        <button onClick={() => handleDeleteClient(client.id, client.clientName)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
-                                    </div>
-                                    </td>
-                                </tr>
-                                );
-                            })}
-                            </tbody>
-                        </table>
-                        </div>
-                    </Card>
-
-                    {/* Mobile View: Cards */}
-                    <div className="md:hidden space-y-4">
-                        {filteredClients.length === 0 ? (
-                            <div className="text-center py-10 text-slate-400 text-sm">{t.noProjectsFound}</div>
-                        ) : filteredClients.map((client) => {
-                             const paidCount = (client.items || []).filter(i => i.isPaid).length;
-                             const totalCount = (client.items || []).length;
-                             const assignedWorkers = users.filter(u => client.assignedWorkerIds?.includes(u.id));
-                             return (
-                                 <Card key={client.id} className="p-4 border border-slate-200">
-                                     {/* Mobile Card Content */}
-                                     <div className="flex justify-between items-start mb-3">
-                                         <div>
-                                             <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-slate-400">#{client.sequenceNumber || '-'}</span>
-                                                <h3 className="font-bold text-slate-800">{client.clientName}</h3>
-                                             </div>
-                                             <div className="flex items-center gap-2 mt-1">
-                                                 <div className="text-xs text-slate-500">{client.phoneNumber}</div>
-                                                  {client.phoneNumber && (
-                                                        <button onClick={() => handleWhatsApp(client.phoneNumber)} className="text-green-500 bg-green-50 p-1 rounded-full" title={t.whatsapp}>
-                                                            <MessageCircle size={12} />
-                                                        </button>
-                                                    )}
-                                             </div>
-                                         </div>
-                                         <StatusBadge status={client.status} lang={language} />
-                                     </div>
-                                     
-                                     <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                                         <div>
-                                             <p className="text-xs text-slate-400">{t.serviceType}</p>
-                                             <div className="mt-1"><ServiceBadge type={client.serviceType} lang={language} /></div>
-                                         </div>
-                                         <div>
-                                             <p className="text-xs text-slate-400">{t.leadDate}</p>
-                                             <p className="font-medium text-slate-700 mt-1">{client.leadDate}</p>
-                                         </div>
-                                     </div>
-
-                                     <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg mb-4">
-                                         <div>
-                                             <p className="text-xs text-slate-400 mb-1">{t.paymentStatus}</p>
-                                             <PaymentStatusBadge paidCount={paidCount} totalCount={totalCount} lang={language} />
-                                         </div>
-                                         <div className="text-right">
-                                             <p className="text-xs text-slate-400 mb-1">Total</p>
-                                             <p className="font-bold text-slate-800">{(client.price * paidCount).toLocaleString()} <span className="text-[10px] font-normal text-slate-500">/ {(client.price * totalCount).toLocaleString()} {t.mad}</span></p>
-                                         </div>
-                                     </div>
-
-                                     <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                                         <div className="flex -space-x-2 rtl:space-x-reverse">
-                                            {assignedWorkers.length > 0 ? assignedWorkers.map(w => (
-                                                <div key={w.id} className="w-6 h-6 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-blue-700">
-                                                    {w.name.charAt(0)}
-                                                </div>
-                                            )) : <span className="text-xs text-slate-400 italic">-</span>}
-                                         </div>
-                                         <div className="flex items-center space-x-1 rtl:space-x-reverse">
-                                            <button onClick={() => { setCopilotSale(client); setIsCopilotOpen(true); }} className="p-2 text-primary-600 bg-primary-50 rounded-lg"><Bot size={16} /></button>
-                                            <button onClick={() => { setEditingSale(client); setIsFormOpen(true); }} className="p-2 text-slate-600 bg-slate-100 rounded-lg"><MoreVertical size={16} /></button>
-                                            <button onClick={() => handleDeleteClient(client.id, client.clientName)} className="p-2 text-red-600 bg-red-50 rounded-lg"><Trash2 size={16} /></button>
-                                         </div>
-                                     </div>
-                                 </Card>
-                             );
-                        })}
-                    </div>
+                    ) : (
+                        filteredProjects.map(project => renderProjectCard(project))
+                    )}
                 </div>
             </div>
         )}
+
       </main>
-
-      {/* Forms and Modals */}
-      <SalesForm 
-        isOpen={isFormOpen} 
-        onClose={() => { setIsFormOpen(false); setEditingSale(null); }} 
-        initialData={editingSale} 
-        onSave={handleSaveClient} 
-        onDelete={handleDeleteClient} 
-        lang={language} 
-        users={users}
-      />
-
-      {isCopilotOpen && (
-        <Copilot 
-          selectedSale={copilotSale} 
-          allSales={activeProject ? activeProject.clients : []} 
-          onClose={() => setIsCopilotOpen(false)} 
-          lang={language} 
-        />
-      )}
-
-      {/* Chat System (Always rendered but visible based on state) */}
-      <ChatSystem 
-          currentUser={currentUser} 
-          users={users} 
-          messages={chatMessages} 
-          onSendMessage={handleSendMessage} 
-          onMarkRead={handleMarkChatRead}
-          isOpen={isChatOpen} 
-          onClose={() => setIsChatOpen(false)} 
-          lang={language} 
-      />
 
       {/* Project Creation Modal */}
       {isProjectModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-              <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6">
-                  <h3 className="text-lg font-bold text-slate-800 mb-4">{t.createProject}</h3>
-                  <form onSubmit={handleCreateProject}>
-                    <Input 
-                        label={t.projectName} 
-                        value={newProjectName} 
-                        onChange={e => setNewProjectName(e.target.value)} 
-                        placeholder="..." 
-                        autoFocus 
-                        className="mb-6"
-                    />
-                    <div className="flex gap-3 justify-end">
-                        <Button type="button" variant="ghost" onClick={() => setIsProjectModalOpen(false)}>{t.cancel}</Button>
-                        <Button type="submit">{t.createProject}</Button>
-                    </div>
-                  </form>
-              </div>
-          </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6">
+             <h3 className="text-lg font-bold text-slate-800 mb-4">{t.createProject}</h3>
+             <form onSubmit={handleCreateProject} className="space-y-4">
+                <Input 
+                    label={t.projectName} 
+                    value={newProjectName} 
+                    onChange={(e) => setNewProjectName(e.target.value)} 
+                    placeholder="New Project Name"
+                    autoFocus
+                    required 
+                />
+                <div className="flex gap-3 justify-end pt-2">
+                   <Button type="button" variant="ghost" onClick={() => setIsProjectModalOpen(false)}>{t.cancel}</Button>
+                   <Button type="submit">{t.createProject}</Button>
+                </div>
+             </form>
+           </div>
+        </div>
+      )}
+
+      {/* Sales Form Modal */}
+      <SalesForm 
+        initialData={editingSale} 
+        isOpen={isFormOpen} 
+        onClose={() => { setIsFormOpen(false); setEditingSale(null); }} 
+        onSave={handleSaveClient} 
+        onDelete={handleDeleteClient}
+        lang={language}
+        users={users}
+      />
+
+      {/* Copilot Sidebar */}
+      {isCopilotOpen && (
+          <Copilot 
+            selectedSale={copilotSale} 
+            allSales={projects.flatMap(p => p.clients)} 
+            onClose={() => setIsCopilotOpen(false)} 
+            lang={language} 
+          />
       )}
     </div>
   );

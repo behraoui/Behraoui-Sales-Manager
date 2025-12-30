@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Sale, SaleStatus, ServiceType, SaleItem, Reminder, ItemStatus, User, TaskType, Attachment } from '../types';
 import { Button, Input, Select } from './UIComponents';
 import { translations } from '../translations';
 import { generateCreativeScript } from '../services/geminiService';
-import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users, Sparkles, Upload, FileAudio, FileText, Image as ImageIcon } from 'lucide-react';
+import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users, Sparkles, Upload, FileAudio, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 
 interface SalesFormProps {
   initialData?: Sale | null;
@@ -31,7 +32,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     leadDate: new Date().toISOString().split('T')[0],
     reminders: [],
     assignedWorkerIds: [],
-    teamInstructions: ''
+    teamInstructions: '',
+    hasClientModifications: false
   });
 
   useEffect(() => {
@@ -48,7 +50,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         leadDate: initialData.leadDate.split('T')[0],
         sentDate: initialData.sentDate ? initialData.sentDate.split('T')[0] : '',
         assignedWorkerIds: initialData.assignedWorkerIds || [],
-        teamInstructions: initialData.teamInstructions || ''
+        teamInstructions: initialData.teamInstructions || '',
+        hasClientModifications: initialData.hasClientModifications || false
       });
     } else {
       setFormData({
@@ -62,7 +65,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         leadDate: new Date().toISOString().split('T')[0],
         reminders: [],
         assignedWorkerIds: [],
-        teamInstructions: ''
+        teamInstructions: '',
+        hasClientModifications: false
       });
     }
   }, [initialData, isOpen]);
@@ -217,7 +221,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       sentDate: formData.sentDate || undefined,
       reminders: formData.reminders || [],
       assignedWorkerIds: formData.assignedWorkerIds || [],
-      teamInstructions: formData.teamInstructions || ''
+      teamInstructions: formData.teamInstructions || '',
+      hasClientModifications: formData.hasClientModifications
     });
     onClose();
   };
@@ -264,6 +269,25 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.clientDetails}</h3>
                 <Input label={t.clientName} value={formData.clientName} onChange={(e) => setFormData({ ...formData, clientName: e.target.value })} required />
                 <Input label={t.phoneNumber} value={formData.phoneNumber} onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })} />
+                
+                {/* Modification Toggle */}
+                <div className="pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all hover:bg-slate-50 bg-white border-slate-200">
+                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${formData.hasClientModifications ? 'bg-orange-500 border-orange-500' : 'bg-white border-slate-300'}`}>
+                            {formData.hasClientModifications && <CheckCircle2 size={14} className="text-white" />}
+                        </div>
+                        <input 
+                            type="checkbox" 
+                            className="hidden" 
+                            checked={formData.hasClientModifications} 
+                            onChange={(e) => setFormData({...formData, hasClientModifications: e.target.checked})} 
+                        />
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700 select-none">
+                            <AlertTriangle size={16} className={formData.hasClientModifications ? 'text-orange-500' : 'text-slate-400'} />
+                            {t.markAsModification}
+                        </div>
+                    </label>
+                </div>
              </div>
              <div className="space-y-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.projectScope}</h3>
