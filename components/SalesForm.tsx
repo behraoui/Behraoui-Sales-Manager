@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Sale, SaleStatus, ServiceType, SaleItem, Reminder, ItemStatus, User, TaskType, Attachment } from '../types';
 import { Button, Input, Select } from './UIComponents';
 import { translations } from '../translations';
 import { generateCreativeScript } from '../services/geminiService';
-import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users, Sparkles, Upload, FileAudio, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users, Sparkles, Upload, FileAudio, FileText, Image as ImageIcon, AlertTriangle, Calculator } from 'lucide-react';
 
 interface SalesFormProps {
   initialData?: Sale | null;
@@ -20,6 +19,10 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
   const t = translations[lang];
   const workers = users.filter(u => u.role === 'worker');
   const [loadingScriptIndex, setLoadingScriptIndex] = useState<number | null>(null);
+
+  // Pricing State
+  const [basePrice, setBasePrice] = useState<number>(0);
+  const [discount, setDiscount] = useState<number>(0);
 
   const [formData, setFormData] = useState<Partial<Sale>>({
     serviceType: ServiceType.VideoAds,
@@ -38,6 +41,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
 
   useEffect(() => {
     if (initialData) {
+      setBasePrice(initialData.price); // Assume stored price is the base if editing (or user can adjust)
+      setDiscount(0); // Reset discount on edit to avoid double applying
       setFormData({
         ...initialData,
         items: initialData.items.map(i => ({ 
@@ -54,6 +59,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         hasClientModifications: initialData.hasClientModifications || false
       });
     } else {
+      setBasePrice(0);
+      setDiscount(0);
       setFormData({
         serviceType: ServiceType.VideoAds,
         status: SaleStatus.Lead,
@@ -70,6 +77,12 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       });
     }
   }, [initialData, isOpen]);
+
+  // Update formData.price whenever basePrice or discount changes
+  useEffect(() => {
+    const finalUnitPrice = basePrice * (1 - discount / 100);
+    setFormData(prev => ({ ...prev, price: finalUnitPrice }));
+  }, [basePrice, discount]);
 
   const handleQuantityChange = (newQty: number) => {
     const qty = Math.max(1, newQty);
@@ -214,7 +227,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       phoneNumber: formData.phoneNumber || '',
       serviceType: formData.serviceType as ServiceType,
       status: formData.status as SaleStatus,
-      price: Number(formData.price),
+      price: Number(formData.price), // This is the calculated Final Unit Price
       quantity: Number(formData.quantity) || 1,
       items: formData.items || [],
       leadDate: formData.leadDate || new Date().toISOString(),
@@ -289,13 +302,34 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                     </label>
                 </div>
              </div>
+             
+             {/* Project Scope & Pricing Calculator */}
              <div className="space-y-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.projectScope}</h3>
                 <Select label={t.serviceType} value={formData.serviceType} onChange={(e) => setFormData({ ...formData, serviceType: e.target.value as ServiceType })} options={Object.values(ServiceType).map(v => ({ label: t.services[v], value: v }))} />
                 <Select label={t.status} value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value as SaleStatus })} options={Object.values(SaleStatus).map(v => ({ label: t.statuses[v], value: v }))} />
-                <div className="grid grid-cols-2 gap-4">
-                    <Input label={t.unitPrice} type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })} required />
-                    <Input label={t.quantity} type="number" value={formData.quantity} onChange={(e) => handleQuantityChange(Number(e.target.value))} required />
+                
+                {/* Dynamic Pricing Block */}
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
+                   <div className="flex items-center gap-2 text-xs font-bold text-primary-600 uppercase mb-1">
+                      <Calculator size={14} /> Pricing Calculator
+                   </div>
+                   <div className="grid grid-cols-2 gap-3">
+                      <Input label={t.unitPrice} type="number" value={basePrice} onChange={(e) => setBasePrice(Number(e.target.value))} required />
+                      <Input label={t.quantity} type="number" value={formData.quantity} onChange={(e) => handleQuantityChange(Number(e.target.value))} required />
+                   </div>
+                   <div className="grid grid-cols-2 gap-3 items-center">
+                      <Input label="Discount (%)" type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} min={0} max={100} />
+                      <div className="bg-white border border-slate-200 rounded-xl p-2 flex flex-col items-end justify-center h-[52px]">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">Total Amount</span>
+                          <span className="text-lg font-bold text-emerald-600">
+                              {(Number(formData.price) * Number(formData.quantity)).toLocaleString()} {t.mad}
+                          </span>
+                      </div>
+                   </div>
+                   <div className="text-[10px] text-center text-slate-400 font-medium">
+                       Final Unit Price: {Number(formData.price).toFixed(2)} {t.mad}
+                   </div>
                 </div>
              </div>
           </div>
