@@ -320,10 +320,10 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                    </div>
                    <div className="grid grid-cols-2 gap-3 items-center">
                       <Input label="Discount (%)" type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} min={0} max={100} />
-                      <div className="bg-white border border-slate-200 rounded-xl p-2 flex flex-col items-end justify-center h-[52px]">
-                          <span className="text-[10px] text-slate-400 font-bold uppercase">Total Amount</span>
-                          <span className="text-lg font-bold text-emerald-600">
-                              {(Number(formData.price) * Number(formData.quantity)).toLocaleString()} {t.mad}
+                      <div className="bg-white border border-slate-200 rounded-xl p-2.5 flex flex-col items-end justify-center shadow-sm h-[74px]">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">Total Amount</span>
+                          <span className="text-xl font-bold text-emerald-600 truncate w-full text-right">
+                              {(Number(formData.price) * Number(formData.quantity)).toLocaleString()} <span className="text-xs font-normal text-slate-400">{t.mad}</span>
                           </span>
                       </div>
                    </div>
