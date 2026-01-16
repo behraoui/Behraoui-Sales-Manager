@@ -47,7 +47,8 @@ import {
   Phone,
   Wallet,
   PieChart as PieChartIcon,
-  Percent
+  Percent,
+  Settings
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -167,13 +168,15 @@ const App = () => {
   const [sortOrder, setSortOrder] = useState<string>('dateDesc');
   
   const [isFormOpen, setIsFormOpen] = useState(false);
+  
+  // Create Project Modal
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectCost, setNewProjectCost] = useState<number>(0);
 
-  // Project Rename State
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState('');
+  // Edit Project Modal
+  const [isEditProjectModalOpen, setIsEditProjectModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<{id: string, name: string, cost: number} | null>(null);
 
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
@@ -228,14 +231,6 @@ const App = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Update rename value when active project changes
-  useEffect(() => {
-    if (activeProject) {
-      setRenameValue(activeProject.name);
-      setIsRenaming(false);
-    }
-  }, [activeProjectId, activeProject]);
 
   // Auth Handlers
   const handleLogin = (user: User) => {
@@ -326,10 +321,22 @@ const App = () => {
     setIsProjectModalOpen(false);
   };
 
-  const handleRenameProject = () => {
-    if (!activeProjectId || !renameValue.trim()) return;
-    setProjects(prev => prev.map(p => p.id === activeProjectId ? { ...p, name: renameValue } : p));
-    setIsRenaming(false);
+  const openEditProjectModal = () => {
+    if (!activeProject) return;
+    setEditingProject({
+        id: activeProject.id,
+        name: activeProject.name,
+        cost: activeProject.cost || 0
+    });
+    setIsEditProjectModalOpen(true);
+  };
+
+  const handleUpdateProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject) return;
+    setProjects(prev => prev.map(p => p.id === editingProject.id ? { ...p, name: editingProject.name, cost: editingProject.cost } : p));
+    setIsEditProjectModalOpen(false);
+    setEditingProject(null);
   };
 
   const handleDeleteProject = (e: React.MouseEvent, projectId: string) => {
@@ -504,7 +511,6 @@ const App = () => {
     const revenueByDate: Record<string, number> = {};
 
     filtered.forEach(({ client }) => {
-      const isPaid = (client.items || []).every(i => i.isPaid);
       const revenue = (client.items || []).filter(i => i.isPaid).length * client.price;
       
       totalRevenue += revenue;
@@ -577,13 +583,19 @@ const App = () => {
     let activeClients = 0;
     let leads = 0;
     let scammers = 0;
+    let totalCost = 0;
 
     projects.forEach(project => {
+        totalCost += (project.cost || 0);
         project.clients.forEach(client => {
             // Revenue Calculation
             (client.items || []).forEach(item => {
                 if(item.isPaid) totalRevenue += client.price;
-                else if (client.status !== SaleStatus.ClosedLost && client.status !== SaleStatus.Scammer) potentialRevenue += client.price;
+                
+                // Potential Revenue (Add if not Lost/Scammer)
+                if (client.status !== SaleStatus.ClosedLost && client.status !== SaleStatus.Scammer) {
+                    potentialRevenue += client.price;
+                }
             });
 
             if (client.status === SaleStatus.InProgress) activeClients++;
@@ -592,7 +604,10 @@ const App = () => {
         });
     });
 
-    return { totalRevenue, potentialRevenue, activeClients, leads, scammers };
+    const netProfit = totalRevenue - totalCost;
+    const potentialProfit = potentialRevenue - totalCost;
+
+    return { totalRevenue, potentialRevenue, activeClients, leads, scammers, totalCost, netProfit, potentialProfit };
   }, [projects]);
 
   // Combined Active Reminders (Project Reminders + Global Notifications)
@@ -740,7 +755,6 @@ const App = () => {
     const expenses = project.cost || 0;
 
     // ROI Calculation: ((Total Potential Revenue - Expenses) / Expenses) * 100
-    // If Expenses are 0, ROI is theoretically infinite, but we'll show 0 or handle it gracefully.
     const potentialProfit = totalPotentialRevenue - expenses;
     const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(0) : '∞';
 
@@ -993,29 +1007,17 @@ const App = () => {
                          <button onClick={() => { setActiveProjectId(null); setSearchTerm(''); }} className="text-slate-400 hover:text-primary-600 transition-colors">
                              <ChevronLeft className={language === 'ar' ? 'rotate-180' : ''} />
                          </button>
-                         {isRenaming ? (
-                             <div className="flex items-center gap-2">
-                                 <input 
-                                    className="text-2xl font-bold text-slate-900 bg-transparent border-b-2 border-primary-500 focus:outline-none w-64"
-                                    value={renameValue}
-                                    onChange={(e) => setRenameValue(e.target.value)}
-                                    autoFocus
-                                    onKeyDown={(e) => { if (e.key === 'Enter') handleRenameProject(); }}
-                                 />
-                                 <button onClick={handleRenameProject} className="p-1 text-green-600 bg-green-50 rounded hover:bg-green-100"><Save size={18} /></button>
-                                 <button onClick={() => setIsRenaming(false)} className="p-1 text-slate-400 bg-slate-50 rounded hover:bg-slate-100"><X size={18} /></button>
-                             </div>
-                         ) : (
-                             <div>
-                                <div className="flex items-center gap-2 group">
-                                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{activeProject?.name}</h1>
-                                    <button onClick={() => setIsRenaming(true)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary-600">
-                                        <Edit2 size={16} />
-                                    </button>
-                                </div>
-                                <p className="text-slate-500 text-sm">{activeProject?.clients.length} {t.totalClients}</p>
-                             </div>
-                         )}
+                         {/* Edit / Rename Section moved to button */}
+                         <div>
+                            <div className="flex items-center gap-2 group">
+                                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{activeProject?.name}</h1>
+                                {/* Edit Project Settings Button */}
+                                <button onClick={openEditProjectModal} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary-600" title={t.editProjectSettings}>
+                                    <Settings size={18} />
+                                </button>
+                            </div>
+                            <p className="text-slate-500 text-sm">{activeProject?.clients.length} {t.totalClients}</p>
+                         </div>
                     </div>
                 ) : (
                     <div>
@@ -1227,15 +1229,20 @@ const App = () => {
                     <div className="p-2 bg-green-50 rounded-lg text-green-600"><DollarSign size={20} /></div>
                   </div>
                 </Card>
+                
+                {/* Updated: Net Profit Card */}
                 <Card className="p-5 border border-slate-200">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.active}</p>
-                      <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.sales}</h3>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.netProfit}</p>
+                      <h3 className={`text-xl font-bold mt-1 ${globalStats.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {globalStats.netProfit >= 0 ? '+' : ''}{globalStats.netProfit.toLocaleString()} {t.mad}
+                      </h3>
                     </div>
-                    <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><TrendingUp size={20} /></div>
+                    <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600"><TrendingUp size={20} /></div>
                   </div>
                 </Card>
+
                 <Card className="p-5 border border-slate-200">
                    <div className="flex justify-between items-start">
                     <div>
@@ -1255,6 +1262,28 @@ const App = () => {
                   </div>
                 </Card>
               </div>
+
+              {/* Additional Financial Row */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card className="p-5 border border-slate-200">
+                     <div className="flex items-center justify-between">
+                         <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.investment}</p>
+                            <h3 className="text-lg font-bold text-slate-800 mt-1">{globalStats.totalCost.toLocaleString()} {t.mad}</h3>
+                         </div>
+                         <div className="p-2 bg-slate-100 rounded-lg text-slate-500"><Wallet size={18} /></div>
+                     </div>
+                  </Card>
+                  <Card className="p-5 border border-slate-200">
+                     <div className="flex items-center justify-between">
+                         <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.potentialProfit}</p>
+                            <h3 className="text-lg font-bold text-slate-800 mt-1">{globalStats.potentialProfit.toLocaleString()} {t.mad}</h3>
+                         </div>
+                         <div className="p-2 bg-indigo-50 rounded-lg text-indigo-500"><Percent size={18} /></div>
+                     </div>
+                  </Card>
+               </div>
 
               {/* Charts Row */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1514,15 +1543,17 @@ const App = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {[
                     { label: t.revenue, value: globalStats.totalRevenue, icon: <DollarSign />, color: 'green' },
-                    { label: t.pipeline, value: globalStats.potentialRevenue, icon: <TrendingUp />, color: 'blue' },
+                    { label: t.netProfit, value: globalStats.netProfit, icon: <TrendingUp />, color: globalStats.netProfit >= 0 ? 'emerald' : 'red' },
                     { label: t.active, value: globalStats.activeClients, icon: <LayoutDashboard />, color: 'purple' },
-                    { label: t.scammers, value: globalStats.scammers, icon: <ShieldAlert />, color: 'red' }
+                    { label: t.investment, value: globalStats.totalCost, icon: <Wallet />, color: 'slate' }
                 ].map((item, i) => (
                     <Card key={i} className="p-5 border border-slate-200">
                     <div className="flex justify-between items-start">
                         <div>
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.label}</p>
-                        <h3 className="text-xl font-bold text-slate-800 mt-1">{item.value.toLocaleString()} {i === 0 ? t.mad : ''}</h3>
+                        <h3 className={`text-xl font-bold mt-1 ${item.color === 'red' ? 'text-red-500' : 'text-slate-800'}`}>
+                            {item.value.toLocaleString()} {i !== 2 ? t.mad : ''}
+                        </h3>
                         </div>
                         <div className={`p-2 bg-${item.color}-50 rounded-lg text-${item.color}-600`}>{item.icon}</div>
                     </div>
@@ -1560,7 +1591,7 @@ const App = () => {
 
       </main>
 
-      {/* Project Creation Modal */}
+      {/* Create Project Modal */}
       {isProjectModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6">
@@ -1584,6 +1615,33 @@ const App = () => {
                 <div className="flex gap-3 justify-end pt-2">
                    <Button type="button" variant="ghost" onClick={() => setIsProjectModalOpen(false)}>{t.cancel}</Button>
                    <Button type="submit">{t.createProject}</Button>
+                </div>
+             </form>
+           </div>
+        </div>
+      )}
+
+      {/* Edit Project Modal */}
+      {isEditProjectModalOpen && editingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6">
+             <h3 className="text-lg font-bold text-slate-800 mb-4">{t.editProjectSettings}</h3>
+             <form onSubmit={handleUpdateProject} className="space-y-4">
+                <Input 
+                    label={t.projectName} 
+                    value={editingProject.name} 
+                    onChange={(e) => setEditingProject({...editingProject, name: e.target.value})} 
+                    required 
+                />
+                <Input 
+                    label={t.projectCost} 
+                    type="number"
+                    value={editingProject.cost} 
+                    onChange={(e) => setEditingProject({...editingProject, cost: Number(e.target.value)})} 
+                />
+                <div className="flex gap-3 justify-end pt-2">
+                   <Button type="button" variant="ghost" onClick={() => setIsEditProjectModalOpen(false)}>{t.cancel}</Button>
+                   <Button type="submit">{t.update}</Button>
                 </div>
              </form>
            </div>
