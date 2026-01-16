@@ -104,6 +104,7 @@ export interface Project {
   createdAt: string; // ISO Date
   description?: string;
   clients: Sale[];
+  cost?: number; // Project Budget/Expenses for ROI calculation
 }
 
 export interface Stats {

@@ -44,7 +44,10 @@ import {
   Check,
   Loader2,
   WifiOff,
-  Phone
+  Phone,
+  Wallet,
+  PieChart as PieChartIcon,
+  Percent
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -166,6 +169,7 @@ const App = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectCost, setNewProjectCost] = useState<number>(0);
 
   // Project Rename State
   const [isRenaming, setIsRenaming] = useState(false);
@@ -313,10 +317,12 @@ const App = () => {
         id: crypto.randomUUID(),
         name: newProjectName,
         createdAt: new Date().toISOString(),
-        clients: []
+        clients: [],
+        cost: newProjectCost
     };
     setProjects(prev => [newProject, ...prev]);
     setNewProjectName('');
+    setNewProjectCost(0);
     setIsProjectModalOpen(false);
   };
 
@@ -727,47 +733,85 @@ const App = () => {
 
   // --- Render Helpers ---
   const renderProjectCard = (project: Project) => {
-    const revenue = project.clients.reduce((acc, c) => {
-        const paidItems = c.items.filter(i => i.isPaid).length;
-        return acc + (c.price * paidItems);
-    }, 0);
+    // Total Value of all items in all clients (Potential Revenue)
+    const totalPotentialRevenue = project.clients.reduce((acc, c) => acc + (c.price * c.items.length), 0);
     
+    // Expenses (Cost)
+    const expenses = project.cost || 0;
+
+    // ROI Calculation: ((Total Potential Revenue - Expenses) / Expenses) * 100
+    // If Expenses are 0, ROI is theoretically infinite, but we'll show 0 or handle it gracefully.
+    const potentialProfit = totalPotentialRevenue - expenses;
+    const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(0) : '∞';
+
     const clientCount = project.clients.length;
 
     return (
         <div 
             key={project.id} 
             onClick={() => { setActiveProjectId(project.id); setSearchTerm(''); }}
-            className="group bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-primary-200 transition-all relative overflow-hidden"
+            className="group bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-primary-200 transition-all relative overflow-hidden flex flex-col justify-between"
         >
-            <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <FolderKanban size={24} />
+            <div>
+                <div className="flex justify-between items-start mb-4">
+                    <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <FolderKanban size={24} />
+                    </div>
+                    {/* Delete Button (Card) */}
+                    <button 
+                        onClick={(e) => handleDeleteProject(e, project.id)}
+                        className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                    >
+                        <Trash2 size={16} />
+                    </button>
                 </div>
-                {/* Delete Button (Card) */}
-                <button 
-                    onClick={(e) => handleDeleteProject(e, project.id)}
-                    className="text-slate-300 hover:text-red-500 transition-colors p-1"
-                >
-                    <Trash2 size={16} />
-                </button>
+                
+                <h3 className="font-bold text-slate-800 text-lg mb-1 truncate">{project.name}</h3>
+                <p className="text-xs text-slate-400 mb-4">{new Date(project.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')}</p>
             </div>
             
-            <h3 className="font-bold text-slate-800 text-lg mb-1 truncate">{project.name}</h3>
-            <p className="text-xs text-slate-400 mb-4">{new Date(project.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')}</p>
-            
-            <div className="flex items-center justify-between text-sm border-t border-slate-50 pt-3">
-                <div className="flex items-center gap-1.5 text-slate-600">
-                    <Users size={14} />
-                    <span>{clientCount}</span>
+            <div className="space-y-3">
+                {/* ROI & Profit Badges */}
+                <div className="flex gap-2">
+                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1`}>
+                        <TrendingUp size={10} /> {roi === '∞' ? '∞' : `${roi}%`} ROI
+                    </span>
+                    <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-100">
+                        +{potentialProfit.toLocaleString()}
+                    </span>
                 </div>
-                <div className="font-bold text-emerald-600">
-                    {revenue.toLocaleString()} <span className="text-[10px] font-normal">{t.mad}</span>
+
+                <div className="flex items-center justify-between text-sm border-t border-slate-50 pt-3">
+                    <div className="flex items-center gap-1.5 text-slate-600">
+                        <Users size={14} />
+                        <span>{clientCount}</span>
+                    </div>
+                    <div className="font-bold text-slate-700 flex flex-col items-end">
+                        <span className="text-[10px] text-slate-400 font-normal uppercase">{t.potentialProfit}</span>
+                    </div>
                 </div>
             </div>
         </div>
     );
   };
+
+  // Calculate stats for Active Project Detail View
+  const projectStats = useMemo(() => {
+      if (!activeProject) return null;
+      
+      const totalPotentialRevenue = activeProject.clients.reduce((acc, c) => acc + (c.price * c.items.length), 0);
+      const collectedRevenue = activeProject.clients.reduce((acc, c) => {
+          const paidItems = c.items.filter(i => i.isPaid).length;
+          return acc + (c.price * paidItems);
+      }, 0);
+
+      const expenses = activeProject.cost || 0;
+      const netProfit = collectedRevenue - expenses;
+      const potentialProfit = totalPotentialRevenue - expenses;
+      const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(1) : '∞';
+
+      return { totalPotentialRevenue, collectedRevenue, expenses, netProfit, potentialProfit, roi };
+  }, [activeProject]);
 
   if (isLoading) {
     return (
@@ -1269,6 +1313,36 @@ const App = () => {
         {/* --- PROJECT DETAIL VIEW (ACTIVE PROJECT) --- */}
         {currentView === 'dashboard' && activeProjectId && (
           <div className="animate-fade-in bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+             
+             {/* Financial Overview Section */}
+             {projectStats && (
+                <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><Wallet size={12} /> {t.projectRevenue}</p>
+                            <p className="text-lg font-bold text-slate-800">{projectStats.collectedRevenue.toLocaleString()} <span className="text-xs font-normal text-slate-400">{t.mad}</span></p>
+                            <p className="text-[10px] text-slate-400 mt-1">Potential: {projectStats.totalPotentialRevenue.toLocaleString()} {t.mad}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><PieChartIcon size={12} /> {t.expenses}</p>
+                             <p className="text-lg font-bold text-slate-800">{projectStats.expenses.toLocaleString()} <span className="text-xs font-normal text-slate-400">{t.mad}</span></p>
+                        </div>
+                        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><TrendingUp size={12} /> {t.netProfit}</p>
+                             <p className={`text-lg font-bold ${projectStats.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                {projectStats.netProfit >= 0 ? '+' : ''}{projectStats.netProfit.toLocaleString()} <span className="text-xs font-normal text-slate-400">{t.mad}</span>
+                             </p>
+                        </div>
+                        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><Percent size={12} /> {t.roi}</p>
+                             <p className={`text-lg font-bold ${projectStats.roi !== '∞' && Number(projectStats.roi) >= 0 ? 'text-purple-600' : 'text-slate-600'}`}>
+                                {projectStats.roi === '∞' ? '∞' : `${projectStats.roi}%`}
+                             </p>
+                        </div>
+                    </div>
+                </div>
+             )}
+
              {/* Toolbar */}
              <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50">
                  {/* Filters */}
@@ -1499,6 +1573,13 @@ const App = () => {
                     placeholder="New Project Name"
                     autoFocus
                     required 
+                />
+                <Input 
+                    label={t.projectCost} 
+                    type="number"
+                    value={newProjectCost} 
+                    onChange={(e) => setNewProjectCost(Number(e.target.value))} 
+                    placeholder="0.00"
                 />
                 <div className="flex gap-3 justify-end pt-2">
                    <Button type="button" variant="ghost" onClick={() => setIsProjectModalOpen(false)}>{t.cancel}</Button>
