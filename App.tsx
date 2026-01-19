@@ -48,7 +48,8 @@ import {
   Wallet,
   PieChart as PieChartIcon,
   Percent,
-  Settings
+  Settings,
+  Archive
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -164,7 +165,7 @@ const App = () => {
   // UI States
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
-  const [paymentFilter, setPaymentFilter] = useState<string>('All');
+  const [clientViewMode, setClientViewMode] = useState<'active' | 'paid'>('active'); // New state for Active vs Paid
   const [sortOrder, setSortOrder] = useState<string>('dateDesc');
   
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -674,12 +675,14 @@ const App = () => {
       
       const paidCount = (client.items || []).filter(i => i.isPaid).length;
       const totalCount = (client.items || []).length;
-      let matchesPayment = paymentFilter === 'All' || 
-        (paymentFilter === 'Fully Paid' && paidCount === totalCount && totalCount > 0) ||
-        (paymentFilter === 'Partially Paid' && paidCount > 0 && paidCount < totalCount) ||
-        (paymentFilter === 'Unpaid' && paidCount === 0);
-      
-      return matchesSearch && matchesStatus && matchesPayment;
+      const isFullyPaid = totalCount > 0 && paidCount === totalCount;
+
+      // Active vs Paid Mode Logic
+      const matchesViewMode = clientViewMode === 'active' 
+          ? !isFullyPaid // In Active mode, hide fully paid clients
+          : isFullyPaid; // In Paid mode, show ONLY fully paid clients
+
+      return matchesSearch && matchesStatus && matchesViewMode;
     });
 
     // Sorting Logic
@@ -703,7 +706,7 @@ const App = () => {
       // Default: Date Descending
       return new Date(b.leadDate).getTime() - new Date(a.leadDate).getTime();
     });
-  }, [activeProject, searchTerm, statusFilter, paymentFilter, sortOrder]);
+  }, [activeProject, searchTerm, statusFilter, clientViewMode, sortOrder]);
 
   const filteredProjects = useMemo(() => {
       if (activeProjectId) return []; 
@@ -1376,6 +1379,22 @@ const App = () => {
              <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50">
                  {/* Filters */}
                  <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+                    <div className="flex bg-slate-100 rounded-lg p-1 mr-2">
+                        <button 
+                            onClick={() => setClientViewMode('active')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${clientViewMode === 'active' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            {t.activeClients}
+                        </button>
+                        <button 
+                            onClick={() => setClientViewMode('paid')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 ${clientViewMode === 'paid' ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <Archive size={12} />
+                            {t.paidHistory}
+                        </button>
+                    </div>
+
                     <div className="relative flex-1 md:w-64">
                         <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-2.5 text-slate-400`} size={18} />
                         <input 
@@ -1396,17 +1415,6 @@ const App = () => {
                         {Object.values(SaleStatus).map(s => <option key={s} value={s}>{t.statuses[s]}</option>)}
                     </select>
 
-                    <select 
-                        className="py-2 px-3 rounded-lg border border-slate-200 text-sm outline-none bg-white cursor-pointer hover:border-slate-300"
-                        value={paymentFilter}
-                        onChange={(e) => setPaymentFilter(e.target.value)}
-                    >
-                        <option value="All">{t.allPayments}</option>
-                        <option value="Fully Paid">{t.fullyPaid}</option>
-                        <option value="Partially Paid">{t.partiallyPaid}</option>
-                        <option value="Unpaid">{t.unpaid}</option>
-                    </select>
-                    
                     <button 
                         onClick={() => setSortOrder(prev => prev === 'dateDesc' ? 'paymentStatus' : 'dateDesc')}
                         className="p-2 border border-slate-200 rounded-lg bg-white text-slate-500 hover:text-primary-600"
@@ -1529,7 +1537,9 @@ const App = () => {
                             <Search size={24} className="opacity-50" />
                         </div>
                         <p className="font-medium">No clients found matching your search.</p>
-                        <p className="text-sm mt-1">Try adjusting your filters or create a new client.</p>
+                        <p className="text-sm mt-1">
+                            {clientViewMode === 'paid' ? 'No fully paid clients yet.' : 'Try adjusting your filters or create a new client.'}
+                        </p>
                     </div>
                 )}
              </div>

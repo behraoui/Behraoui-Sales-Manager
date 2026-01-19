@@ -115,6 +115,8 @@ export const translations = {
     roi: 'ROI',
     editProjectSettings: 'Project Settings',
     update: 'Update',
+    activeClients: 'Active Clients',
+    paidHistory: 'Paid History',
     itemStatuses: {
       Pending: 'Pending',
       'In Progress': 'In Progress',
@@ -291,6 +293,8 @@ export const translations = {
     roi: 'العائد على الاستثمار',
     editProjectSettings: 'إعدادات المشروع',
     update: 'تحديث',
+    activeClients: 'العملاء النشطون',
+    paidHistory: 'سجل المدفوعات',
     itemStatuses: {
       Pending: 'قيد الانتظار',
       'In Progress': 'قيد العمل',
