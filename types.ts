@@ -34,6 +34,7 @@ export interface User {
   name: string;
   role: UserRole;
   createdAt: string;
+  avatar?: string; // Base64 string for profile picture
 }
 
 export interface Reminder {

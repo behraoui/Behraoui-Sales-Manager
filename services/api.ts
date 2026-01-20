@@ -39,7 +39,8 @@ export const api = {
         password: u.password,
         name: u.name,
         role: u.role,
-        createdAt: u.created_at
+        createdAt: u.created_at,
+        avatar: u.avatar // Map the new avatar field
       }));
 
       // Map Sales
@@ -246,9 +247,21 @@ export const api = {
       password: user.password,
       name: user.name,
       role: user.role,
-      created_at: user.createdAt
+      created_at: user.createdAt,
+      avatar: user.avatar
     });
     if (error) console.error("Error creating user:", JSON.stringify(error, null, 2));
+  },
+
+  async updateUser(user: User) {
+    const { error } = await supabase.from('users').update({
+      username: user.username,
+      password: user.password,
+      name: user.name,
+      role: user.role,
+      avatar: user.avatar
+    }).eq('id', user.id);
+    if (error) console.error("Error updating user:", JSON.stringify(error, null, 2));
   },
 
   async deleteUser(id: string) {

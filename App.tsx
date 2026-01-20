@@ -260,6 +260,16 @@ const App = () => {
       setUsers(prev => [...prev, newUser]);
       await api.createUser(newUser);
   };
+  
+  // Update User Handler
+  const handleUpdateUser = async (updatedUser: User) => {
+    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    // If the current user is updated (e.g., changed their own avatar), update local session
+    if (currentUser && currentUser.id === updatedUser.id) {
+        setCurrentUser(updatedUser);
+    }
+    await api.updateUser(updatedUser);
+  };
 
   // Sign Up Handler
   const handleSignup = async (userData: Omit<User, 'id' | 'createdAt'>) => {
@@ -961,6 +971,7 @@ const App = () => {
                 projects={projects} 
                 onUpdateTaskStatus={handleWorkerUpdateStatus} 
                 lang={language}
+                onOpenChat={() => setIsChatOpen(true)}
             />
             <ChatSystem 
                 currentUser={currentUser} 
@@ -1029,8 +1040,12 @@ const App = () => {
 
           <div className="pt-2 mt-4 border-t border-slate-100">
              <div className="px-4 py-2 mb-2 flex items-center gap-2">
-                 <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold">
-                     {currentUser.name.charAt(0)}
+                 <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold overflow-hidden">
+                     {currentUser.avatar ? (
+                         <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                     ) : (
+                         currentUser.name.charAt(0)
+                     )}
                  </div>
                  <div className="overflow-hidden">
                      <p className="text-sm font-bold text-slate-800 truncate">{currentUser.name}</p>
@@ -1183,6 +1198,7 @@ const App = () => {
                 <TeamManager 
                     users={users} 
                     onAddUser={handleAddUser} 
+                    onUpdateUser={handleUpdateUser}
                     onDeleteUser={handleDeleteUser} 
                     lang={language} 
                 />
@@ -1554,26 +1570,6 @@ const App = () => {
                 )}
              </div>
           </div>
-        )}
-
-        {currentView === 'dashboard' && !activeProjectId && (
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in pb-20">
-              {filteredProjects.length === 0 ? (
-                 <div className="col-span-full text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                        <FolderKanban size={32} />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-1">{t.noProjectsFound}</h3>
-                    <p className="text-slate-500 text-sm mb-4">{t.createProject}</p>
-                    <Button onClick={() => setIsProjectModalOpen(true)}>
-                        <Plus size={18} className={language === 'ar' ? 'ml-2' : 'mr-2'} />
-                        {t.newProject}
-                    </Button>
-                 </div>
-              ) : (
-                 filteredProjects.map(renderProjectCard)
-              )}
-           </div>
         )}
 
       </main>
