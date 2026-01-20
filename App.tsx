@@ -129,7 +129,7 @@ const App = () => {
 
     initData();
 
-    // Subscribe to Realtime Updates
+    // Subscribe to Realtime Updates (Chat & Notifications)
     const channel = supabase.channel('realtime_updates')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
           const newMsg = payload.new;
@@ -784,11 +784,15 @@ const App = () => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        setIsLoading(true); // Show loading spinner
+        setIsLoading(true);
         const content = e.target?.result as string;
         const rawData = JSON.parse(content);
         
-        // Strict Sanitization for Projects to prevent crashes (missing items/dates)
+        if (!rawData || typeof rawData !== 'object') {
+            throw new Error("Invalid backup format");
+        }
+
+        // Strict Sanitization for Projects to prevent crashes
         const safeProjects = Array.isArray(rawData.projects) ? rawData.projects.map((p: any) => ({
             ...p,
             clients: Array.isArray(p.clients) ? p.clients.map((c: any) => ({
@@ -805,13 +809,17 @@ const App = () => {
 
         if (safeProjects.length > 0) {
              setProjects(safeProjects);
-             // Persist projects and clients to Database
+             // Persist projects and clients to Database safely
              for (const p of safeProjects) {
-                 await api.createProject(p);
-                 if (p.clients && p.clients.length > 0) {
-                     for (const c of p.clients) {
-                         await api.saveSale(p.id, c);
-                     }
+                 try {
+                    await api.createProject(p);
+                    if (p.clients && p.clients.length > 0) {
+                        for (const c of p.clients) {
+                            await api.saveSale(p.id, c);
+                        }
+                    }
+                 } catch (err) {
+                     console.error(`Failed to sync project ${p.name} to DB during import`, err);
                  }
              }
         }
@@ -820,16 +828,20 @@ const App = () => {
         if (Array.isArray(rawData.globalNotifications)) setGlobalNotifications(rawData.globalNotifications);
         if (Array.isArray(rawData.chatMessages)) setChatMessages(rawData.chatMessages);
 
-        setIsLoading(false); // Stop loading spinner
+        // Reset view to avoid blank screen if active project doesn't exist anymore
+        setActiveProjectId(null);
+        setCurrentView('dashboard');
+
         alert(language === 'ar' ? 'تم استعادة البيانات بنجاح' : 'Data restored successfully');
       } catch (error) {
-        setIsLoading(false); // Stop loading spinner on error
         console.error('Error parsing backup file:', error);
         alert(language === 'ar' ? 'حدث خطأ أثناء استعادة البيانات' : 'Error restoring data');
+      } finally {
+        setIsLoading(false); // Critical: ensure loading state is turned off
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
     reader.readAsText(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   // ... Render helpers and return ...
