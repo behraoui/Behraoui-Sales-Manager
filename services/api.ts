@@ -9,12 +9,12 @@ export const api = {
     try {
       // Parallel fetch for efficiency
       const [
-        { data: projectsData },
-        { data: salesData },
-        { data: itemsData },
+        { data: projectsData, error: projectsError },
+        { data: salesData, error: salesError },
+        { data: itemsData, error: itemsError },
         { data: assignmentsData },
         { data: remindersData },
-        { data: usersData },
+        { data: usersData, error: usersError },
         { data: notificationsData },
         { data: messagesData }
       ] = await Promise.all([
@@ -27,6 +27,10 @@ export const api = {
         supabase.from('notifications').select('*').order('created_at', { ascending: false }),
         supabase.from('chat_messages').select('*').order('created_at', { ascending: true })
       ]);
+
+      if (projectsError) console.error("Projects Fetch Error:", JSON.stringify(projectsError, null, 2));
+      if (salesError) console.error("Sales Fetch Error:", JSON.stringify(salesError, null, 2));
+      if (usersError) console.error("Users Fetch Error:", JSON.stringify(usersError, null, 2));
 
       // Reconstruct Users
       const users: User[] = (usersData || []).map(u => ({
@@ -146,7 +150,7 @@ export const api = {
       cost: project.cost,
       created_at: project.createdAt
     });
-    if (error) console.error(error);
+    if (error) console.error("Error creating project:", JSON.stringify(error, null, 2));
   },
 
   async updateProject(project: Project) {
@@ -154,12 +158,12 @@ export const api = {
       name: project.name,
       cost: project.cost
     }).eq('id', project.id);
-    if (error) console.error(error);
+    if (error) console.error("Error updating project:", JSON.stringify(error, null, 2));
   },
 
   async deleteProject(id: string) {
     const { error } = await supabase.from('projects').delete().eq('id', id);
-    if (error) console.error(error);
+    if (error) console.error("Error deleting project:", JSON.stringify(error, null, 2));
   },
 
   // --- SALES (CLIENTS) ---
@@ -181,7 +185,7 @@ export const api = {
       has_client_modifications: sale.hasClientModifications,
       // preserve sequence_number if it exists/auto-gen handled by DB default
     });
-    if (saleError) return console.error('Error saving sale:', saleError);
+    if (saleError) return console.error('Error saving sale:', JSON.stringify(saleError, null, 2));
 
     // 2. Sync Items (Strategy: Delete all for this sale and re-insert to handle order/changes easily)
     // Note: In production, better diffing is recommended, but this guarantees consistency for now.
@@ -198,7 +202,7 @@ export const api = {
         attachments: i.attachments
       }));
       const { error: itemsError } = await supabase.from('sale_items').insert(itemsPayload);
-      if (itemsError) console.error('Error saving items:', itemsError);
+      if (itemsError) console.error('Error saving items:', JSON.stringify(itemsError, null, 2));
     }
 
     // 3. Sync Assignments
@@ -227,7 +231,7 @@ export const api = {
 
   async deleteSale(id: string) {
     const { error } = await supabase.from('sales').delete().eq('id', id);
-    if (error) console.error(error);
+    if (error) console.error("Error deleting sale:", JSON.stringify(error, null, 2));
   },
 
   async deleteReminder(id: string) {
@@ -244,12 +248,12 @@ export const api = {
       role: user.role,
       created_at: user.createdAt
     });
-    if (error) console.error(error);
+    if (error) console.error("Error creating user:", JSON.stringify(error, null, 2));
   },
 
   async deleteUser(id: string) {
     const { error } = await supabase.from('users').delete().eq('id', id);
-    if (error) console.error(error);
+    if (error) console.error("Error deleting user:", JSON.stringify(error, null, 2));
   },
 
   // --- NOTIFICATIONS & CHAT ---
@@ -263,7 +267,7 @@ export const api = {
       is_read: n.isRead,
       created_at: n.date
     });
-    if (error) console.error(error);
+    if (error) console.error("Error sending notification:", JSON.stringify(error, null, 2));
   },
 
   async markNotificationRead(id: string) {
@@ -279,7 +283,7 @@ export const api = {
       is_read: m.read,
       created_at: m.timestamp
     });
-    if (error) console.error(error);
+    if (error) console.error("Error sending message:", JSON.stringify(error, null, 2));
   },
 
   async markMessagesRead(senderId: string, receiverId: string) {
