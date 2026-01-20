@@ -146,6 +146,10 @@ const App = () => {
               }];
           });
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_messages' }, (payload) => {
+          const updatedMsg = payload.new;
+          setChatMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, read: updatedMsg.is_read } : m));
+      })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
           const newNotif = payload.new;
           setGlobalNotifications(prev => {
@@ -997,6 +1001,7 @@ const App = () => {
         ${isSidebarOpen ? 'translate-x-0' : (language === 'ar' ? 'translate-x-full' : '-translate-x-full')} 
         md:translate-x-0 md:static md:h-screen md:sticky md:top-0
       `}>
+        {/* ... Sidebar content remains the same ... */}
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
           <div className="flex items-center space-x-3 rtl:space-x-reverse text-slate-900 font-bold text-xl tracking-tight">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary-500/20">
@@ -1007,6 +1012,7 @@ const App = () => {
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600"><X size={24} /></button>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {/* ... Navigation buttons ... */}
           <button onClick={() => { setCurrentView('dashboard'); setActiveProjectId(null); setIsSidebarOpen(false); }} className={`flex items-center space-x-3 rtl:space-x-reverse w-full px-4 py-3 rounded-xl font-medium mb-1 transition-colors ${currentView === 'dashboard' && !activeProjectId ? 'bg-primary-50 text-primary-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
             <LayoutDashboard size={20} />
             <span>{t.dashboard}</span>
@@ -1112,6 +1118,7 @@ const App = () => {
                   </span>
                 }
              </button>
+             {/* ... Notification Bell ... */}
              <div className="relative" ref={notificationRef}>
               <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 relative">
                 <Bell size={20} className={activeReminders.length > 0 ? 'text-slate-700' : 'text-slate-400'} />
@@ -1238,6 +1245,7 @@ const App = () => {
         {currentView === 'analytics' && (
            <div className="animate-fade-in space-y-6">
               <Card className="p-4 border border-slate-200">
+                {/* ... Analytics Content ... */}
                 <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
                   <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{t.timeRange}:</span>
@@ -1273,6 +1281,7 @@ const App = () => {
                 </div>
               </Card>
 
+              {/* ... Rest of Analytics UI ... */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="p-5 border border-slate-200">
                   <div className="flex justify-between items-start">
@@ -1389,6 +1398,7 @@ const App = () => {
 
         {currentView === 'dashboard' && activeProjectId && (
           <div className="animate-fade-in bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+             {/* ... Dashboard content remains the same ... */}
              {projectStats && (
                 <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1418,6 +1428,7 @@ const App = () => {
              )}
 
              <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50">
+                 {/* ... Filter Controls ... */}
                  <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
                     <div className="flex bg-slate-100 rounded-lg p-1 mr-2">
                         <button 
@@ -1647,6 +1658,17 @@ const App = () => {
             lang={language} 
           />
       )}
+      
+      <ChatSystem 
+          currentUser={currentUser} 
+          users={users} 
+          messages={chatMessages} 
+          onSendMessage={handleSendMessage} 
+          onMarkRead={handleMarkChatRead}
+          isOpen={isChatOpen} 
+          onClose={() => setIsChatOpen(false)} 
+          lang={language} 
+      />
     </div>
   );
 };
