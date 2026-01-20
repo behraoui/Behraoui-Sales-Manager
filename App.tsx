@@ -79,8 +79,10 @@ const getAvatarColor = (name: string) => {
         'from-rose-400 to-rose-600'
     ];
     let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    if (name) {
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
     }
     return colors[Math.abs(hash) % colors.length];
 };
@@ -116,12 +118,6 @@ const App = () => {
       // Fetch from Supabase
       const data = await api.fetchAll();
       
-      if (data.projects.length === 0 && data.users.length === 0) {
-          // If totally empty or error, maybe fallback or just show empty state
-          // Note: If no users exist, Login Page won't work unless we have a default admin in DB.
-          // The SQL provided inserted a default admin, so we should be good if connected.
-      }
-
       setProjects(data.projects);
       setUsers(data.users);
       setGlobalNotifications(data.notifications);
@@ -293,6 +289,7 @@ const App = () => {
   };
 
   const handleWhatsApp = (phone: string) => {
+    if (!phone) return;
     const cleanNumber = phone.replace(/[^\d+]/g, ''); // Keep digits and plus sign
     if (cleanNumber) {
         window.open(`https://wa.me/${cleanNumber}`, '_blank');
@@ -457,13 +454,16 @@ const App = () => {
     // Flatten all clients
     let allClients: { client: Sale; projectName: string }[] = [];
     projects.forEach(p => {
-      p.clients.forEach(c => {
+      // Safety check for p.clients
+      (p.clients || []).forEach(c => {
         allClients.push({ client: c, projectName: p.name });
       });
     });
 
     // Filter by date
     const filtered = allClients.filter(item => {
+      // Safety check for leadDate
+      if (!item.client.leadDate) return false;
       const d = new Date(item.client.leadDate);
       return d >= start && d <= end;
     });
@@ -478,18 +478,23 @@ const App = () => {
     const revenueByDate: Record<string, number> = {};
 
     filtered.forEach(({ client }) => {
-      const revenue = (client.items || []).filter(i => i.isPaid).length * client.price;
+      const revenue = (client.items || []).filter(i => i.isPaid).length * (client.price || 0);
       
       totalRevenue += revenue;
       if (client.status === SaleStatus.Lead) leads++;
       if (client.status === SaleStatus.Delivered || client.status === SaleStatus.InProgress) sales++;
 
       // Service Dist
-      serviceDistribution[client.serviceType] = (serviceDistribution[client.serviceType] || 0) + 1;
+      const sType = client.serviceType || 'Unknown';
+      serviceDistribution[sType] = (serviceDistribution[sType] || 0) + 1;
 
-      // Revenue Trend
-      const dateKey = client.leadDate.split('T')[0];
-      revenueByDate[dateKey] = (revenueByDate[dateKey] || 0) + revenue;
+      // Revenue Trend - Safer date parsing
+      try {
+          const dateKey = (client.leadDate || new Date().toISOString()).split('T')[0];
+          revenueByDate[dateKey] = (revenueByDate[dateKey] || 0) + revenue;
+      } catch (e) {
+          // Ignore invalid dates
+      }
     });
 
     const pieData = Object.entries(serviceDistribution).map(([name, value]) => ({ name: t.services[name as ServiceType] || name, value }));
@@ -549,11 +554,11 @@ const App = () => {
 
     projects.forEach(project => {
         totalCost += (project.cost || 0);
-        project.clients.forEach(client => {
+        (project.clients || []).forEach(client => {
             (client.items || []).forEach(item => {
-                if(item.isPaid) totalRevenue += client.price;
+                if(item.isPaid) totalRevenue += (client.price || 0);
                 if (client.status !== SaleStatus.ClosedLost && client.status !== SaleStatus.Scammer) {
-                    potentialRevenue += client.price;
+                    potentialRevenue += (client.price || 0);
                 }
             });
             if (client.status === SaleStatus.InProgress) activeClients++;
@@ -575,7 +580,7 @@ const App = () => {
     
     if (currentUser?.role === 'admin') {
         projects.forEach(project => {
-            project.clients.forEach(client => {
+            (project.clients || []).forEach(client => {
                 (client.reminders || []).forEach(rem => {
                     if (!rem.isCompleted) {
                         const remDate = new Date(rem.date);
@@ -622,7 +627,7 @@ const App = () => {
   const filteredClients = useMemo(() => {
     if (!activeProject) return [];
     
-    const result = activeProject.clients.filter(client => {
+    const result = (activeProject.clients || []).filter(client => {
       const matchesSearch = (client.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'All' || client.status === statusFilter;
       
@@ -645,9 +650,9 @@ const App = () => {
 
       if (sortOrder === 'paymentStatus') {
          const getScore = (client: Sale) => {
-            const total = client.items.length;
+            const total = (client.items || []).length;
             if (total === 0) return 0;
-            const paid = client.items.filter(i => i.isPaid).length;
+            const paid = (client.items || []).filter(i => i.isPaid).length;
             if (paid === 0) return 1; 
             if (paid < total) return 2; 
             return 3; 
@@ -655,7 +660,7 @@ const App = () => {
          const diff = getScore(a) - getScore(b);
          if (diff !== 0) return diff;
       }
-      return new Date(b.leadDate).getTime() - new Date(a.leadDate).getTime();
+      return new Date(b.leadDate || 0).getTime() - new Date(a.leadDate || 0).getTime();
     });
   }, [activeProject, searchTerm, statusFilter, paymentFilter, clientViewMode, sortOrder]);
 
@@ -729,12 +734,27 @@ const App = () => {
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string;
-        const data = JSON.parse(content);
+        const rawData = JSON.parse(content);
         
-        if (data.projects) setProjects(data.projects);
-        if (data.users) setUsers(data.users);
-        if (data.globalNotifications) setGlobalNotifications(data.globalNotifications);
-        if (data.chatMessages) setChatMessages(data.chatMessages);
+        // Strict Sanitization for Projects to prevent crashes (missing items/dates)
+        const safeProjects = Array.isArray(rawData.projects) ? rawData.projects.map((p: any) => ({
+            ...p,
+            clients: Array.isArray(p.clients) ? p.clients.map((c: any) => ({
+                ...c,
+                items: Array.isArray(c.items) ? c.items : [],
+                reminders: Array.isArray(c.reminders) ? c.reminders : [],
+                // Ensure essential fields exist
+                leadDate: c.leadDate || new Date().toISOString(),
+                clientName: c.clientName || 'Unknown Client',
+                status: c.status || 'Lead',
+                serviceType: c.serviceType || 'Video Ads'
+            })) : []
+        })) : [];
+
+        if (safeProjects.length > 0) setProjects(safeProjects);
+        if (Array.isArray(rawData.users)) setUsers(rawData.users);
+        if (Array.isArray(rawData.globalNotifications)) setGlobalNotifications(rawData.globalNotifications);
+        if (Array.isArray(rawData.chatMessages)) setChatMessages(rawData.chatMessages);
 
         alert(language === 'ar' ? 'تم استعادة البيانات بنجاح' : 'Data restored successfully');
       } catch (error) {
@@ -752,11 +772,11 @@ const App = () => {
 
   const renderProjectCard = (project: Project) => {
     // Total Value of all items in all clients (Potential Revenue)
-    const totalPotentialRevenue = project.clients.reduce((acc, c) => acc + (c.price * c.items.length), 0);
+    const totalPotentialRevenue = (project.clients || []).reduce((acc, c) => acc + (c.price * (c.items || []).length), 0);
     const expenses = project.cost || 0;
     const potentialProfit = totalPotentialRevenue - expenses;
     const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(0) : '∞';
-    const clientCount = project.clients.length;
+    const clientCount = (project.clients || []).length;
 
     return (
         <div 
@@ -804,9 +824,10 @@ const App = () => {
 
   const projectStats = useMemo(() => {
       if (!activeProject) return null;
-      const totalPotentialRevenue = activeProject.clients.reduce((acc, c) => acc + (c.price * c.items.length), 0);
-      const collectedRevenue = activeProject.clients.reduce((acc, c) => {
-          const paidItems = c.items.filter(i => i.isPaid).length;
+      const clients = activeProject.clients || [];
+      const totalPotentialRevenue = clients.reduce((acc, c) => acc + (c.price * (c.items || []).length), 0);
+      const collectedRevenue = clients.reduce((acc, c) => {
+          const paidItems = (c.items || []).filter(i => i.isPaid).length;
           return acc + (c.price * paidItems);
       }, 0);
       const expenses = activeProject.cost || 0;
@@ -1392,8 +1413,9 @@ const App = () => {
                     </thead>
                     <tbody>
                         {filteredClients.map((client, index) => {
-                             const paidItems = client.items.filter(i => i.isPaid).length;
-                             const totalItems = client.items.length;
+                             const items = client.items || [];
+                             const paidItems = items.filter(i => i.isPaid).length;
+                             const totalItems = items.length;
                              const progress = totalItems > 0 ? (paidItems / totalItems) * 100 : 0;
                              
                              return (
