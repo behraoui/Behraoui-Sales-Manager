@@ -130,12 +130,14 @@ const App = () => {
     initData();
 
     // Subscribe to Realtime Updates (Chat & Notifications)
-    const channel = supabase.channel('realtime_updates')
+    // Using a specific channel name for clarity
+    const channel = supabase.channel('nexus_realtime_updates')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
           const newMsg = payload.new;
           setChatMessages(prev => {
-              // Avoid duplicates
+              // Avoid duplicates if message already exists (e.g. from optimistic update)
               if (prev.some(m => m.id === newMsg.id)) return prev;
+              
               return [...prev, {
                   id: newMsg.id,
                   senderId: newMsg.sender_id,
@@ -165,7 +167,13 @@ const App = () => {
               }, ...prev];
           });
       })
-      .subscribe();
+      .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+              console.log('Realtime connection established.');
+          } else if (status === 'CHANNEL_ERROR') {
+              console.error('Realtime connection failed.');
+          }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -367,6 +375,7 @@ const App = () => {
   };
 
   const handleSendMessage = async (receiverId: string, text: string) => {
+      // Create message locally
       const newMessage: ChatMessage = {
           id: crypto.randomUUID(),
           senderId: currentUser!.id,
@@ -375,7 +384,11 @@ const App = () => {
           timestamp: new Date().toISOString(),
           read: false
       };
+      
+      // Optimistic Update
       setChatMessages(prev => [...prev, newMessage]);
+      
+      // Send to API (which inserts to Supabase, triggering Realtime for others)
       await api.sendMessage(newMessage);
   };
 
@@ -395,8 +408,6 @@ const App = () => {
         setGlobalNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
         await api.markNotificationRead(id);
     } else if (type === 'project' && projectId && saleId) {
-        // For project reminders, we update local state but saving is complex (nested).
-        // Best approach: Optimistic update + call saveSale which saves reminders.
         const project = projects.find(p => p.id === projectId);
         const sale = project?.clients.find(c => c.id === saleId);
         
@@ -418,9 +429,8 @@ const App = () => {
     }
   };
 
-  // Worker Task Update
+  // Worker Task Update logic ...
   const handleWorkerUpdateStatus = async (projectId: string, saleId: string, itemIndex: number, newStatus: ItemStatus) => {
-      // Find the project and sale to calculate full update
       const project = projects.find(p => p.id === projectId);
       const sale = project?.clients.find(c => c.id === saleId);
       
@@ -430,12 +440,10 @@ const App = () => {
       const taskName = newItems[itemIndex].name || (language === 'ar' ? 'مهمة' : 'Task');
       newItems[itemIndex] = { ...newItems[itemIndex], status: newStatus };
       
-      // Auto-update overall status if all Delivered
       let newClientStatus = sale.status;
       if (newItems.every(i => i.status === 'Delivered')) newClientStatus = SaleStatus.Delivered;
       else if (newItems.some(i => i.status === 'In Progress' || i.status === 'Delivered') && sale.status === SaleStatus.Lead) newClientStatus = SaleStatus.InProgress;
 
-      // Create Notification/Reminder
       const notification: Reminder = {
           id: crypto.randomUUID(),
           date: new Date().toISOString(),
@@ -452,7 +460,6 @@ const App = () => {
           reminders: [...(sale.reminders || []), notification]
       };
 
-      // Optimistic Update
       setProjects(prev => prev.map(p => {
           if (p.id !== projectId) return p;
           return {
@@ -461,11 +468,10 @@ const App = () => {
           };
       }));
 
-      // API Call
       await api.saveSale(projectId, updatedSale);
   };
 
-  // --- ANALYTICS LOGIC ---
+  // ... Analytics Logic ...
   const getDateRange = (range: TimeRange) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -501,51 +507,37 @@ const App = () => {
 
   const analyticsData = useMemo(() => {
     const { start, end } = getDateRange(timeRange);
-    
-    // Flatten all clients
     let allClients: { client: Sale; projectName: string }[] = [];
     projects.forEach(p => {
-      // Safety check for p.clients
       (p.clients || []).forEach(c => {
         allClients.push({ client: c, projectName: p.name });
       });
     });
 
-    // Filter by date
     const filtered = allClients.filter(item => {
-      // Safety check for leadDate
       if (!item.client.leadDate) return false;
       const d = new Date(item.client.leadDate);
       return d >= start && d <= end;
     });
 
-    // Calculate Stats
     let totalRevenue = 0;
     let leads = 0;
     let sales = 0;
     
-    // For Charts
     const serviceDistribution: Record<string, number> = {};
     const revenueByDate: Record<string, number> = {};
 
     filtered.forEach(({ client }) => {
       const revenue = (client.items || []).filter(i => i.isPaid).length * (client.price || 0);
-      
       totalRevenue += revenue;
       if (client.status === SaleStatus.Lead) leads++;
       if (client.status === SaleStatus.Delivered || client.status === SaleStatus.InProgress) sales++;
-
-      // Service Dist
       const sType = client.serviceType || 'Unknown';
       serviceDistribution[sType] = (serviceDistribution[sType] || 0) + 1;
-
-      // Revenue Trend - Safer date parsing
       try {
           const dateKey = (client.leadDate || new Date().toISOString()).split('T')[0];
           revenueByDate[dateKey] = (revenueByDate[dateKey] || 0) + revenue;
-      } catch (e) {
-          // Ignore invalid dates
-      }
+      } catch (e) {}
     });
 
     const pieData = Object.entries(serviceDistribution).map(([name, value]) => ({ name: t.services[name as ServiceType] || name, value }));
@@ -565,7 +557,6 @@ const App = () => {
   }, [projects, timeRange, customStart, customEnd, language]);
 
   const handleExportCSV = () => {
-    // ... CSV logic remains same ...
     const { filteredClients } = analyticsData;
     if (filteredClients.length === 0) return;
     const headers = ['Project Name', 'Client Name', 'Phone', 'Service', 'Status', 'Date', 'Total Price (MAD)', 'Paid Amount (MAD)', 'Payment Status'];
@@ -594,7 +585,6 @@ const App = () => {
     link.click();
   };
 
-  // Dashboard Stats Logic (Aggregated - Global)
   const globalStats = useMemo(() => {
     let totalRevenue = 0;
     let potentialRevenue = 0;
@@ -624,7 +614,6 @@ const App = () => {
     return { totalRevenue, potentialRevenue, activeClients, leads, scammers, totalCost, netProfit, potentialProfit };
   }, [projects]);
 
-  // Combined Active Reminders
   const activeReminders = useMemo(() => {
     const now = new Date();
     const allReminders: any[] = [];
@@ -674,7 +663,6 @@ const App = () => {
     return allReminders.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [projects, globalNotifications, currentUser]);
 
-  // View Logic (Projects)
   const filteredClients = useMemo(() => {
     if (!activeProject) return [];
     
@@ -720,17 +708,12 @@ const App = () => {
       return projects.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [projects, searchTerm, activeProjectId]);
 
-  // CRUD for Clients
   const handleSaveClient = async (client: Sale) => {
     if (!activeProjectId) return;
-    
-    // Optimistic Update
     setProjects(prev => prev.map(p => {
         if (p.id !== activeProjectId) return p;
-        
         const clientExists = p.clients.find(c => c.id === client.id);
         let updatedClients;
-        
         if (clientExists) {
             updatedClients = p.clients.map(c => c.id === client.id ? { ...client, sequenceNumber: c.sequenceNumber } : c);
         } else {
@@ -740,8 +723,6 @@ const App = () => {
         }
         return { ...p, clients: updatedClients };
     }));
-    
-    // Database Save
     await api.saveSale(activeProjectId, client);
     setEditingSale(null);
   };
@@ -760,12 +741,7 @@ const App = () => {
   };
 
   const handleExport = () => {
-    const data = {
-      projects,
-      users,
-      globalNotifications,
-      chatMessages
-    };
+    const data = { projects, users, globalNotifications, chatMessages };
     const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -787,19 +763,15 @@ const App = () => {
         setIsLoading(true);
         const content = e.target?.result as string;
         const rawData = JSON.parse(content);
-        
         if (!rawData || typeof rawData !== 'object') {
             throw new Error("Invalid backup format");
         }
-
-        // Strict Sanitization for Projects to prevent crashes
         const safeProjects = Array.isArray(rawData.projects) ? rawData.projects.map((p: any) => ({
             ...p,
             clients: Array.isArray(p.clients) ? p.clients.map((c: any) => ({
                 ...c,
                 items: Array.isArray(c.items) ? c.items : [],
                 reminders: Array.isArray(c.reminders) ? c.reminders : [],
-                // Ensure essential fields exist
                 leadDate: c.leadDate || new Date().toISOString(),
                 clientName: c.clientName || 'Unknown Client',
                 status: c.status || 'Lead',
@@ -809,7 +781,6 @@ const App = () => {
 
         if (safeProjects.length > 0) {
              setProjects(safeProjects);
-             // Persist projects and clients to Database safely
              for (const p of safeProjects) {
                  try {
                     await api.createProject(p);
@@ -823,31 +794,25 @@ const App = () => {
                  }
              }
         }
-        
         if (Array.isArray(rawData.users)) setUsers(rawData.users);
         if (Array.isArray(rawData.globalNotifications)) setGlobalNotifications(rawData.globalNotifications);
         if (Array.isArray(rawData.chatMessages)) setChatMessages(rawData.chatMessages);
 
-        // Reset view to avoid blank screen if active project doesn't exist anymore
         setActiveProjectId(null);
         setCurrentView('dashboard');
-
         alert(language === 'ar' ? 'تم استعادة البيانات بنجاح' : 'Data restored successfully');
       } catch (error) {
         console.error('Error parsing backup file:', error);
         alert(language === 'ar' ? 'حدث خطأ أثناء استعادة البيانات' : 'Error restoring data');
       } finally {
-        setIsLoading(false); // Critical: ensure loading state is turned off
+        setIsLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
     reader.readAsText(file);
   };
 
-  // ... Render helpers and return ...
-
   const renderProjectCard = (project: Project) => {
-    // Total Value of all items in all clients (Potential Revenue)
     const totalPotentialRevenue = (project.clients || []).reduce((acc, c) => acc + (c.price * (c.items || []).length), 0);
     const expenses = project.cost || 0;
     const potentialProfit = totalPotentialRevenue - expenses;
@@ -927,11 +892,9 @@ const App = () => {
   }
 
   if (currentUser.role === 'worker') {
-      // ... existing worker dashboard code ...
       return (
         <div className={`min-h-screen bg-slate-50 ${language === 'ar' ? 'font-arabic' : 'font-sans'}`}>
             <nav className="bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm">
-                {/* Worker Nav Content */}
                 <div className="flex items-center gap-2">
                      <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary-500/20">
                         <TrendingUp size={18} className="text-white" />
