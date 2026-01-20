@@ -9,6 +9,7 @@ import TeamManager from './components/TeamManager';
 import WorkerDashboard from './components/WorkerDashboard';
 import ChatSystem from './components/ChatSystem';
 import { api } from './services/api';
+import { supabase } from './services/supabaseClient';
 import { translations } from './translations';
 import { 
   Plus, 
@@ -127,6 +128,44 @@ const App = () => {
     };
 
     initData();
+
+    // Subscribe to Realtime Updates
+    const channel = supabase.channel('realtime_updates')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
+          const newMsg = payload.new;
+          setChatMessages(prev => {
+              // Avoid duplicates
+              if (prev.some(m => m.id === newMsg.id)) return prev;
+              return [...prev, {
+                  id: newMsg.id,
+                  senderId: newMsg.sender_id,
+                  receiverId: newMsg.receiver_id,
+                  text: newMsg.text,
+                  timestamp: newMsg.created_at,
+                  read: newMsg.is_read
+              }];
+          });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+          const newNotif = payload.new;
+          setGlobalNotifications(prev => {
+              if (prev.some(n => n.id === newNotif.id)) return prev;
+              return [{
+                  id: newNotif.id,
+                  targetUserId: newNotif.target_user_id,
+                  fromUserName: newNotif.from_user_name,
+                  message: newNotif.message,
+                  date: newNotif.created_at,
+                  isRead: newNotif.is_read,
+                  type: newNotif.type
+              }, ...prev];
+          });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -173,8 +212,6 @@ const App = () => {
 
   const notificationRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Removed LocalStorage useEffects since we save on action now.
 
   useEffect(() => {
     if (currentUser) {

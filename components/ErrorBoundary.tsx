@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { ErrorInfo, ReactNode } from 'react';
 import { RefreshCcw, AlertTriangle } from 'lucide-react';
 
 interface Props {
@@ -10,14 +10,11 @@ interface State {
   error: Error | null;
 }
 
-class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null
-    };
-  }
+class ErrorBoundary extends React.Component<Props, State> {
+  public state: State = {
+    hasError: false,
+    error: null
+  };
 
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
@@ -28,7 +25,6 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
-      // Clear potentially corrupted local state if needed, though usually just reload helps if state wasn't persisted to DB yet
       window.location.reload();
   };
 
@@ -41,7 +37,7 @@ class ErrorBoundary extends Component<Props, State> {
                 <AlertTriangle size={32} />
              </div>
              <h1 className="text-xl font-bold text-slate-800 mb-2">Something went wrong</h1>
-             <p className="text-slate-500 text-sm mb-6">The application encountered an error while processing data. This often happens when importing older backup files.</p>
+             <p className="text-slate-500 text-sm mb-6">The application encountered an error. Please try reloading.</p>
              
              {this.state.error && (
                 <div className="bg-slate-100 p-3 rounded-lg text-xs font-mono text-left text-slate-600 mb-6 w-full overflow-auto max-h-32 border border-slate-200">
