@@ -139,7 +139,8 @@ export const api = {
 
   // --- PROJECTS ---
   async createProject(project: Project) {
-    const { error } = await supabase.from('projects').insert({
+    // Changed to upsert to support imports and updates safely
+    const { error } = await supabase.from('projects').upsert({
       id: project.id,
       name: project.name,
       cost: project.cost,

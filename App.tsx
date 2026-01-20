@@ -731,8 +731,9 @@ const App = () => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
+        setIsLoading(true); // Show loading spinner
         const content = e.target?.result as string;
         const rawData = JSON.parse(content);
         
@@ -751,13 +752,27 @@ const App = () => {
             })) : []
         })) : [];
 
-        if (safeProjects.length > 0) setProjects(safeProjects);
+        if (safeProjects.length > 0) {
+             setProjects(safeProjects);
+             // Persist projects and clients to Database
+             for (const p of safeProjects) {
+                 await api.createProject(p);
+                 if (p.clients && p.clients.length > 0) {
+                     for (const c of p.clients) {
+                         await api.saveSale(p.id, c);
+                     }
+                 }
+             }
+        }
+        
         if (Array.isArray(rawData.users)) setUsers(rawData.users);
         if (Array.isArray(rawData.globalNotifications)) setGlobalNotifications(rawData.globalNotifications);
         if (Array.isArray(rawData.chatMessages)) setChatMessages(rawData.chatMessages);
 
+        setIsLoading(false); // Stop loading spinner
         alert(language === 'ar' ? 'تم استعادة البيانات بنجاح' : 'Data restored successfully');
       } catch (error) {
+        setIsLoading(false); // Stop loading spinner on error
         console.error('Error parsing backup file:', error);
         alert(language === 'ar' ? 'حدث خطأ أثناء استعادة البيانات' : 'Error restoring data');
       }
@@ -767,8 +782,6 @@ const App = () => {
   };
 
   // ... Render helpers and return ...
-  // Keeping the rest of the render logic same, just verifying the data sources are `projects` which we updated.
-  // The component structure remains identical.
 
   const renderProjectCard = (project: Project) => {
     // Total Value of all items in all clients (Potential Revenue)
@@ -851,6 +864,7 @@ const App = () => {
   }
 
   if (currentUser.role === 'worker') {
+      // ... existing worker dashboard code ...
       return (
         <div className={`min-h-screen bg-slate-50 ${language === 'ar' ? 'font-arabic' : 'font-sans'}`}>
             <nav className="bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm">
@@ -1503,6 +1517,26 @@ const App = () => {
                 )}
              </div>
           </div>
+        )}
+
+        {currentView === 'dashboard' && !activeProjectId && (
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in pb-20">
+              {filteredProjects.length === 0 ? (
+                 <div className="col-span-full text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                        <FolderKanban size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">{t.noProjectsFound}</h3>
+                    <p className="text-slate-500 text-sm mb-4">{t.createProject}</p>
+                    <Button onClick={() => setIsProjectModalOpen(true)}>
+                        <Plus size={18} className={language === 'ar' ? 'ml-2' : 'mr-2'} />
+                        {t.newProject}
+                    </Button>
+                 </div>
+              ) : (
+                 filteredProjects.map(renderProjectCard)
+              )}
+           </div>
         )}
 
       </main>
