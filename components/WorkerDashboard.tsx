@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Project, Sale, SaleItem, ItemStatus, User, TaskType, Attachment } from '../types';
+import { Project, Sale, SaleItem, ItemStatus, User, TaskType, Attachment, WorkerStatus } from '../types';
 import { Card, StatusBadge, ServiceBadge, Button } from './UIComponents';
 import { translations } from '../translations';
 import { api } from '../services/api';
@@ -44,11 +44,13 @@ interface WorkerDashboardProps {
 const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects, onUpdateTaskStatus, lang, onOpenChat }) => {
   const t = translations[lang];
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
-  const [workerStatus, setWorkerStatus] = useState<'available' | 'busy'>(currentUser.workerStatus || 'available');
+  // Fixed: explicitly use WorkerStatus type to allow 'offline' value from currentUser
+  const [workerStatus, setWorkerStatus] = useState<WorkerStatus>(currentUser.workerStatus || 'available');
 
   // --- WORKER STATUS LOGIC ---
   const toggleWorkerStatus = async () => {
-      const newStatus = workerStatus === 'available' ? 'busy' : 'available';
+      // If currently available, switch to busy. Otherwise (busy or offline), switch to available.
+      const newStatus: WorkerStatus = workerStatus === 'available' ? 'busy' : 'available';
       setWorkerStatus(newStatus);
       await api.updateUser({ ...currentUser, workerStatus: newStatus });
   };
