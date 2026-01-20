@@ -1408,6 +1408,28 @@ const App = () => {
            </div>
         )}
 
+        {currentView === 'dashboard' && !activeProjectId && (
+            <div className="animate-fade-in">
+                {filteredProjects.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-center">
+                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                            <FolderPlus size={32} className="text-slate-300" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800">{t.noProjectsFound}</h3>
+                        <p className="text-slate-400 text-sm mt-1 mb-6 max-w-md">{language === 'ar' ? 'ابدأ بإنشاء مشروع جديد لتنظيم عملائك ومهامك.' : 'Get started by creating a new project to organize your clients and tasks.'}</p>
+                        <Button onClick={() => setIsProjectModalOpen(true)}>
+                            <Plus size={18} className={language === 'ar' ? 'ml-2' : 'mr-2'} />
+                            {t.createProject}
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredProjects.map(project => renderProjectCard(project))}
+                    </div>
+                )}
+            </div>
+        )}
+
         {currentView === 'dashboard' && activeProjectId && (
           <div className="animate-fade-in bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
              {/* ... Dashboard content remains the same ... */}
