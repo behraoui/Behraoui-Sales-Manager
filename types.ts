@@ -23,9 +23,11 @@ export enum TaskType {
   VoiceOver = 'Voice Over Recording'
 }
 
-export type ItemStatus = 'Pending' | 'In Progress' | 'Delivered';
+export type ItemStatus = 'Pending' | 'In Progress' | 'Delivered' | 'Needs Revision';
 
 export type UserRole = 'admin' | 'worker';
+
+export type WorkerStatus = 'available' | 'busy' | 'offline';
 
 export interface User {
   id: string;
@@ -35,6 +37,7 @@ export interface User {
   role: UserRole;
   createdAt: string;
   avatar?: string; // Base64 string for profile picture
+  workerStatus?: WorkerStatus; // New: Availability status
 }
 
 export interface Reminder {
@@ -66,7 +69,7 @@ export interface ChatMessage {
 
 export interface Attachment {
   name: string;
-  type: 'audio' | 'pdf' | 'image' | 'other';
+  type: 'audio' | 'pdf' | 'image' | 'video' | 'other';
   data: string; // Base64 string
 }
 
@@ -77,6 +80,8 @@ export interface SaleItem {
   type?: TaskType;
   description?: string; // Script or instructions
   attachments?: Attachment[];
+  deliverables?: Attachment[]; // New: Final files uploaded by worker
+  rejectionNote?: string; // New: Reason for 'Needs Revision'
 }
 
 // 'Sale' now represents a Client/Job within a Project

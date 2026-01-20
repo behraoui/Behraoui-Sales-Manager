@@ -126,7 +126,8 @@ export const translations = {
     itemStatuses: {
       Pending: 'Pending',
       'In Progress': 'In Progress',
-      Delivered: 'Delivered'
+      Delivered: 'Delivered',
+      'Needs Revision': 'Needs Revision'
     },
     statuses: {
       [SaleStatus.Lead]: 'Lead',
@@ -154,10 +155,15 @@ export const translations = {
       taskType: 'Task Type',
       generateScript: 'Generate Script with AI',
       scriptPlaceholder: 'Enter script or detailed instructions here...',
-      attachments: 'Attachments (Audio/PDF)',
+      attachments: 'Reference Files',
+      deliverables: 'Final Deliverables',
       upload: 'Upload',
       download: 'Download',
-      noAttachments: 'No attachments'
+      noAttachments: 'No attachments',
+      uploadDeliverable: 'Upload Final File',
+      rejectionReason: 'Reason for Revision',
+      enterRejectionReason: 'Why does this task need revision?',
+      deliverablesUploaded: 'Files uploaded'
     },
     teamManagement: {
       title: 'Team Management',
@@ -184,7 +190,10 @@ export const translations = {
       notificationSent: 'Notification sent successfully',
       chat: 'Team Chat',
       typeMessage: 'Type a message...',
-      uploadAvatar: 'Upload Avatar'
+      uploadAvatar: 'Upload Avatar',
+      status: 'Status',
+      available: 'Available',
+      busy: 'Busy / Off Duty'
     },
     workerDashboard: {
         taskStats: 'Task Statistics',
@@ -200,7 +209,8 @@ export const translations = {
         reset: 'Reset',
         contactAdmin: 'Contact Admin',
         timeToFocus: 'Time to Focus',
-        takeABreak: 'Take a Break'
+        takeABreak: 'Take a Break',
+        uploadFirst: 'Upload a file first'
     },
     markRead: 'Mark as read',
     noNotifications: 'No new notifications',
@@ -329,7 +339,8 @@ export const translations = {
     itemStatuses: {
       Pending: 'قيد الانتظار',
       'In Progress': 'قيد العمل',
-      Delivered: 'تم التسليم'
+      Delivered: 'تم التسليم',
+      'Needs Revision': 'يحتاج تعديل'
     },
     statuses: {
       [SaleStatus.Lead]: 'عميل محتمل',
@@ -357,10 +368,15 @@ export const translations = {
       taskType: 'نوع المهمة',
       generateScript: 'توليد سيناريو بالذكاء الاصطناعي',
       scriptPlaceholder: 'أدخل السيناريو أو تعليمات مفصلة هنا...',
-      attachments: 'المرفقات (صوت/PDF)',
+      attachments: 'ملفات مرجعية',
+      deliverables: 'الملفات النهائية',
       upload: 'رفع',
       download: 'تحميل',
-      noAttachments: 'لا توجد مرفقات'
+      noAttachments: 'لا توجد مرفقات',
+      uploadDeliverable: 'رفع الملف النهائي',
+      rejectionReason: 'سبب التعديل',
+      enterRejectionReason: 'لماذا تحتاج هذه المهمة إلى تعديل؟',
+      deliverablesUploaded: 'تم رفع الملفات'
     },
     teamManagement: {
       title: 'إدارة الفريق',
@@ -387,7 +403,10 @@ export const translations = {
       notificationSent: 'تم إرسال الإشعار بنجاح',
       chat: 'دردشة الفريق',
       typeMessage: 'اكتب رسالة...',
-      uploadAvatar: 'صورة شخصية'
+      uploadAvatar: 'صورة شخصية',
+      status: 'الحالة',
+      available: 'متاح للعمل',
+      busy: 'مشغول / خارج الخدمة'
     },
     workerDashboard: {
         taskStats: 'إحصائيات المهام',
@@ -403,7 +422,8 @@ export const translations = {
         reset: 'إعادة ضبط',
         contactAdmin: 'مراسلة الإدارة',
         timeToFocus: 'وقت التركيز',
-        takeABreak: 'خذ استراحة'
+        takeABreak: 'خذ استراحة',
+        uploadFirst: 'يجب رفع ملف أولاً'
     },
     markRead: 'تمييز كمقروء',
     noNotifications: 'لا توجد إشعارات جديدة',

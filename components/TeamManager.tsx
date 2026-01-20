@@ -102,11 +102,15 @@ const TeamManager: React.FC<TeamManagerProps> = ({ users, onAddUser, onUpdateUse
           <Card key={user.id} className="p-5 flex flex-col justify-between group relative overflow-hidden">
             <div className="flex items-start justify-between relative z-10">
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden border-2 ${user.role === 'admin' ? 'border-purple-100' : 'border-blue-100'} ${!user.avatar && (user.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600')}`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden border-2 relative ${user.role === 'admin' ? 'border-purple-100' : 'border-blue-100'} ${!user.avatar && (user.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600')}`}>
                    {user.avatar ? (
                        <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                    ) : (
                        user.role === 'admin' ? <Shield size={24} /> : <UserIcon size={24} />
+                   )}
+                   {/* Status Indicator */}
+                   {user.role === 'worker' && (
+                       <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${user.workerStatus === 'busy' ? 'bg-red-500' : 'bg-green-500'}`} title={user.workerStatus || 'available'}></div>
                    )}
                 </div>
                 <div>
@@ -139,6 +143,13 @@ const TeamManager: React.FC<TeamManagerProps> = ({ users, onAddUser, onUpdateUse
               </span>
               <span className="text-slate-400">{new Date(user.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'en-US')}</span>
             </div>
+            
+            {/* Status Text for clarity */}
+            {user.role === 'worker' && (
+                <div className={`absolute top-0 right-0 px-2 py-1 rounded-bl-lg text-[10px] font-bold uppercase tracking-wider ${user.workerStatus === 'busy' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                    {user.workerStatus === 'busy' ? t.teamManagement.busy : t.teamManagement.available}
+                </div>
+            )}
           </Card>
         ))}
       </div>

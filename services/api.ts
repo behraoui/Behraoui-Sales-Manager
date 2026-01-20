@@ -1,6 +1,6 @@
 
 import { supabase } from './supabaseClient';
-import { Project, User, Sale, SaleItem, Reminder, GlobalNotification, ChatMessage, SaleStatus, ServiceType, TaskType, ItemStatus } from '../types';
+import { Project, User, Sale, SaleItem, Reminder, GlobalNotification, ChatMessage, SaleStatus, ServiceType, TaskType, ItemStatus, WorkerStatus } from '../types';
 
 // Helper to construct nested Project data from flat DB tables
 export const api = {
@@ -40,7 +40,8 @@ export const api = {
         name: u.name,
         role: u.role,
         createdAt: u.created_at,
-        avatar: u.avatar // Map the new avatar field
+        avatar: u.avatar,
+        workerStatus: (u.worker_status as WorkerStatus) || 'available' // Map worker status
       }));
 
       // Map Sales
@@ -56,7 +57,9 @@ export const api = {
             status: i.status as ItemStatus,
             type: i.type as TaskType,
             description: i.description,
-            attachments: i.attachments || []
+            attachments: i.attachments || [],
+            deliverables: i.deliverables || [], // Map deliverables
+            rejectionNote: i.rejection_note // Map rejection note
           }));
 
         // Find assignments
@@ -200,7 +203,9 @@ export const api = {
         status: i.status,
         type: i.type,
         description: i.description,
-        attachments: i.attachments
+        attachments: i.attachments,
+        deliverables: i.deliverables, // Save deliverables
+        rejection_note: i.rejectionNote // Save rejection note
       }));
       const { error: itemsError } = await supabase.from('sale_items').insert(itemsPayload);
       if (itemsError) console.error('Error saving items:', JSON.stringify(itemsError, null, 2));
@@ -248,7 +253,8 @@ export const api = {
       name: user.name,
       role: user.role,
       created_at: user.createdAt,
-      avatar: user.avatar
+      avatar: user.avatar,
+      worker_status: user.workerStatus || 'available'
     });
     if (error) console.error("Error creating user:", JSON.stringify(error, null, 2));
   },
@@ -259,7 +265,8 @@ export const api = {
       password: user.password,
       name: user.name,
       role: user.role,
-      avatar: user.avatar
+      avatar: user.avatar,
+      worker_status: user.workerStatus // Update status
     }).eq('id', user.id);
     if (error) console.error("Error updating user:", JSON.stringify(error, null, 2));
   },

@@ -130,8 +130,9 @@ const App = () => {
     initData();
 
     // Subscribe to Realtime Updates (Chat & Notifications)
-    // Using a specific channel name for clarity
-    const channel = supabase.channel('nexus_realtime_updates')
+    // Using a unique channel ID to prevent conflicts during hot-reloads
+    const channelId = `nexus_realtime_${Date.now()}`;
+    const channel = supabase.channel(channelId)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
           const newMsg = payload.new;
           setChatMessages(prev => {
@@ -167,11 +168,15 @@ const App = () => {
               }, ...prev];
           });
       })
-      .subscribe((status) => {
+      .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
               console.log('Realtime connection established.');
-          } else if (status === 'CHANNEL_ERROR') {
-              console.error('Realtime connection failed.');
+              setIsOffline(false);
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              console.error(`Realtime connection failed (${status}):`, err);
+              setIsOffline(true);
+          } else if (status === 'CLOSED') {
+              console.log('Realtime connection closed.');
           }
       });
 

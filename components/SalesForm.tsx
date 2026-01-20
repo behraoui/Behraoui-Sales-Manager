@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Sale, SaleStatus, ServiceType, SaleItem, Reminder, ItemStatus, User, TaskType, Attachment } from '../types';
 import { Button, Input, Select } from './UIComponents';
 import { translations } from '../translations';
 import { generateCreativeScript } from '../services/geminiService';
-import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users, Sparkles, Upload, FileAudio, FileText, Image as ImageIcon, AlertTriangle, Calculator } from 'lucide-react';
+import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users, Sparkles, Upload, FileAudio, FileText, Image as ImageIcon, AlertTriangle, Calculator, FileCheck, Info } from 'lucide-react';
 
 interface SalesFormProps {
   initialData?: Sale | null;
@@ -29,7 +30,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     status: SaleStatus.Lead,
     price: 0,
     quantity: 1,
-    items: [{ name: '', isPaid: false, status: 'Pending', type: TaskType.General, description: '', attachments: [] }],
+    items: [{ name: '', isPaid: false, status: 'Pending', type: TaskType.General, description: '', attachments: [], deliverables: [] }],
     clientName: '',
     phoneNumber: '',
     leadDate: new Date().toISOString().split('T')[0],
@@ -50,7 +51,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
             status: i.status || 'Pending',
             type: i.type || TaskType.General,
             description: i.description || '',
-            attachments: i.attachments || []
+            attachments: i.attachments || [],
+            deliverables: i.deliverables || []
         })),
         leadDate: initialData.leadDate.split('T')[0],
         sentDate: initialData.sentDate ? initialData.sentDate.split('T')[0] : '',
@@ -66,7 +68,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         status: SaleStatus.Lead,
         price: 0,
         quantity: 1,
-        items: [{ name: '', isPaid: false, status: 'Pending', type: TaskType.General, description: '', attachments: [] }],
+        items: [{ name: '', isPaid: false, status: 'Pending', type: TaskType.General, description: '', attachments: [], deliverables: [] }],
         clientName: '',
         phoneNumber: '',
         leadDate: new Date().toISOString().split('T')[0],
@@ -90,7 +92,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       const items = [...(prev.items || [])];
       if (qty > items.length) {
           for(let i=items.length; i<qty; i++) {
-              items.push({ name: '', isPaid: false, status: 'Pending', type: TaskType.General, description: '', attachments: [] });
+              items.push({ name: '', isPaid: false, status: 'Pending', type: TaskType.General, description: '', attachments: [], deliverables: [] });
           }
       } else if (qty < items.length) {
           items.length = qty;
@@ -108,12 +110,25 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
   };
 
   const cycleItemStatus = (index: number) => {
-    const statuses: ItemStatus[] = ['Pending', 'In Progress', 'Delivered'];
+    const statuses: ItemStatus[] = ['Pending', 'In Progress', 'Delivered', 'Needs Revision'];
     setFormData(prev => {
       const items = [...(prev.items || [])];
       const currentStatus = items[index].status || 'Pending';
       const nextIndex = (statuses.indexOf(currentStatus) + 1) % statuses.length;
-      items[index] = { ...items[index], status: statuses[nextIndex] };
+      const nextStatus = statuses[nextIndex];
+      
+      // If switching to "Needs Revision", prompt for reason
+      if (nextStatus === 'Needs Revision') {
+          const reason = prompt(t.tasks.enterRejectionReason);
+          if (reason) {
+              items[index] = { ...items[index], status: nextStatus, rejectionNote: reason };
+          } else {
+              return prev; // Cancel change if no reason given
+          }
+      } else {
+          items[index] = { ...items[index], status: nextStatus };
+      }
+      
       return { ...prev, items };
     });
   };
@@ -151,7 +166,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
           
           const newAttachment: Attachment = {
               name: fileName,
-              type: file.type.includes('audio') ? 'audio' : file.type.includes('pdf') ? 'pdf' : file.type.includes('image') ? 'image' : 'other',
+              type: file.type.includes('audio') ? 'audio' : file.type.includes('pdf') ? 'pdf' : file.type.includes('video') ? 'video' : file.type.includes('image') ? 'image' : 'other',
               data: base64
           };
           
@@ -244,6 +259,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     switch (status) {
       case 'In Progress': return <Loader2 size={16} className="animate-spin-slow" />;
       case 'Delivered': return <CheckCircle size={16} />;
+      case 'Needs Revision': return <AlertTriangle size={16} />;
       default: return <Clock size={16} />;
     }
   };
@@ -252,6 +268,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     switch (status) {
       case 'In Progress': return 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100';
       case 'Delivered': return 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100';
+      case 'Needs Revision': return 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100';
       default: return 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100';
     }
   };
@@ -403,14 +420,47 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                                  ))}
                                  <label className="cursor-pointer flex items-center gap-1 bg-white border border-dashed border-primary-300 text-primary-600 px-3 py-1.5 rounded-lg text-xs hover:bg-primary-50 transition-colors">
                                      <Upload size={14} /> {t.tasks.upload}
-                                     <input type="file" className="hidden" accept="audio/*,application/pdf,image/*" onChange={(e) => handleFileUpload(i, e)} />
+                                     <input type="file" className="hidden" accept="audio/*,application/pdf,image/*,video/*" onChange={(e) => handleFileUpload(i, e)} />
                                  </label>
                              </div>
                         </div>
 
+                        {/* Deliverables View for Admin */}
+                        {item.deliverables && item.deliverables.length > 0 && (
+                            <div className="mb-4 bg-green-50 p-3 rounded-xl border border-green-100">
+                                <label className="block text-xs font-bold text-green-700 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                                    <FileCheck size={14} /> {t.tasks.deliverables}
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {item.deliverables.map((del, dIdx) => (
+                                        <a 
+                                            key={dIdx} 
+                                            href={del.data} 
+                                            download={del.name} 
+                                            className="flex items-center gap-2 bg-white border border-green-200 px-3 py-1.5 rounded-lg text-xs hover:bg-green-50 transition-colors text-green-700 font-medium"
+                                        >
+                                            <FileCheck size={14} />
+                                            <span className="truncate max-w-[150px]">{del.name}</span>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Rejection Note View */}
+                        {item.status === 'Needs Revision' && item.rejectionNote && (
+                            <div className="mb-4 bg-red-50 p-3 rounded-xl border border-red-100 flex items-start gap-2">
+                                <AlertTriangle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-xs font-bold text-red-700 uppercase mb-1">{t.tasks.rejectionReason}</p>
+                                    <p className="text-sm text-red-600">{item.rejectionNote}</p>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex gap-2 items-center justify-between border-t border-slate-50 pt-3">
                             <div className="flex gap-2">
-                                {/* Status Toggle */}
+                                {/* Status Toggle (With Cycle Logic including Revision) */}
                                 <button type="button" onClick={() => cycleItemStatus(i)} className={`px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all justify-center ${getItemStatusColor(item.status)}`}>
                                     {getItemStatusIcon(item.status)}
                                     <span className="text-[10px] font-bold truncate">{t.itemStatuses[item.status]}</span>
@@ -446,10 +496,12 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                                         : 'bg-white text-slate-600 border border-slate-200 hover:border-blue-300'
                                 }`}
                             >
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold relative ${
                                     formData.assignedWorkerIds?.includes(worker.id) ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
                                 }`}>
                                     {worker.name.charAt(0)}
+                                    {/* Worker Availability Dot */}
+                                    <div className={`absolute top-0 right-0 w-2 h-2 rounded-full border border-white ${worker.workerStatus === 'busy' ? 'bg-red-500' : 'bg-green-500'}`}></div>
                                 </div>
                                 {worker.name}
                                 {formData.assignedWorkerIds?.includes(worker.id) && <CheckCircle2 size={14} />}

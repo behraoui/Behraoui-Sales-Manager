@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Project, Sale, SaleItem, ItemStatus, User, TaskType } from '../types';
+import { Project, Sale, SaleItem, ItemStatus, User, TaskType, Attachment } from '../types';
 import { Card, StatusBadge, ServiceBadge, Button } from './UIComponents';
 import { translations } from '../translations';
+import { api } from '../services/api';
 import { 
     CheckCircle2, 
     Circle, 
@@ -23,7 +24,12 @@ import {
     PieChart,
     User as UserIcon,
     Calendar,
-    Briefcase
+    Briefcase,
+    AlertTriangle,
+    FileCheck,
+    Upload,
+    ToggleLeft,
+    ToggleRight
 } from 'lucide-react';
 import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
@@ -38,6 +44,14 @@ interface WorkerDashboardProps {
 const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects, onUpdateTaskStatus, lang, onOpenChat }) => {
   const t = translations[lang];
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
+  const [workerStatus, setWorkerStatus] = useState<'available' | 'busy'>(currentUser.workerStatus || 'available');
+
+  // --- WORKER STATUS LOGIC ---
+  const toggleWorkerStatus = async () => {
+      const newStatus = workerStatus === 'available' ? 'busy' : 'available';
+      setWorkerStatus(newStatus);
+      await api.updateUser({ ...currentUser, workerStatus: newStatus });
+  };
 
   // --- ANALYTICS LOGIC ---
   const myTasks = useMemo(() => {
@@ -122,14 +136,73 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects
 
   const cycleStatus = (projectId: string, saleId: string, index: number, currentStatus: ItemStatus) => {
     const statuses: ItemStatus[] = ['Pending', 'In Progress', 'Delivered'];
-    const nextIndex = (statuses.indexOf(currentStatus) + 1) % statuses.length;
+    
+    // Prevent cycling to 'Delivered' if no deliverables uploaded (optional rule, implemented as alert for now)
+    // Note: 'Needs Revision' is only set by Admin, worker cycles back to 'In Progress' to fix
+    
+    let nextIndex = (statuses.indexOf(currentStatus) + 1) % statuses.length;
+    
+    // If currently 'Needs Revision', worker likely wants to go to 'In Progress' or 'Delivered'
+    if (currentStatus === 'Needs Revision') {
+        nextIndex = statuses.indexOf('In Progress');
+    }
+
     onUpdateTaskStatus(projectId, saleId, index, statuses[nextIndex]);
+  };
+
+  const handleDeliverableUpload = async (projectId: string, saleId: string, itemIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+          const base64 = event.target?.result as string;
+          const fileName = file.name;
+          
+          const newDeliverable: Attachment = {
+              name: fileName,
+              type: file.type.includes('audio') ? 'audio' : file.type.includes('pdf') ? 'pdf' : file.type.includes('video') ? 'video' : file.type.includes('image') ? 'image' : 'other',
+              data: base64
+          };
+
+          // We need to fetch the specific sale to update it. 
+          // Since we don't have a direct 'updateSaleItem' prop that handles attachments in parent, 
+          // we should ideally update the whole sale via API and trigger a refresh.
+          // For this implementation, we will perform a direct API update to 'sale_items' then trigger callback.
+          // Note: In a real app, 'onUpdateTaskStatus' might be 'onUpdateTask' to handle entire object.
+          
+          // Construct the update. We need to get the current items first.
+          const project = projects.find(p => p.id === projectId);
+          const sale = project?.clients.find(c => c.id === saleId);
+          if (sale) {
+              const updatedItems = [...sale.items];
+              const currentDeliverables = updatedItems[itemIndex].deliverables || [];
+              updatedItems[itemIndex] = {
+                  ...updatedItems[itemIndex],
+                  deliverables: [...currentDeliverables, newDeliverable],
+                  status: 'Delivered' // Auto-set to Delivered on upload
+              };
+              
+              // Optimistic UI update via the prop (trick: status update triggers re-render if parent handles it)
+              // We really should have a proper update method. 
+              // We'll manually call API here for the file, then calling onUpdateTaskStatus to refresh UI status.
+              
+              const newSale = { ...sale, items: updatedItems };
+              await api.saveSale(projectId, newSale);
+              
+              // Trigger UI refresh
+              onUpdateTaskStatus(projectId, saleId, itemIndex, 'Delivered');
+              alert(t.tasks.deliverablesUploaded);
+          }
+      };
+      reader.readAsDataURL(file);
   };
 
   const getItemStatusIcon = (status: ItemStatus) => {
       switch (status) {
         case 'In Progress': return <Loader2 size={16} className="animate-spin-slow" />;
         case 'Delivered': return <CheckCircle size={16} />;
+        case 'Needs Revision': return <AlertTriangle size={16} />;
         default: return <Clock size={16} />;
       }
     };
@@ -138,6 +211,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects
       switch (status) {
         case 'In Progress': return 'bg-blue-50 text-blue-700 border-blue-200';
         case 'Delivered': return 'bg-green-50 text-green-700 border-green-200';
+        case 'Needs Revision': return 'bg-red-50 text-red-700 border-red-200 animate-pulse';
         default: return 'bg-slate-50 text-slate-500 border-slate-200';
       }
     };
@@ -181,7 +255,20 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects
             </div>
         </div>
 
-        <div className="flex gap-3 relative z-10 w-full md:w-auto">
+        <div className="flex flex-col md:flex-row gap-3 relative z-10 w-full md:w-auto items-center">
+             {/* Availability Toggle */}
+             <button 
+                onClick={toggleWorkerStatus}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all shadow-sm ${
+                    workerStatus === 'available' 
+                    ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100' 
+                    : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+                }`}
+             >
+                 {workerStatus === 'available' ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                 {workerStatus === 'available' ? t.teamManagement.available : t.teamManagement.busy}
+             </button>
+
              <Button onClick={onOpenChat} className="shadow-lg shadow-primary-500/20 flex-1 md:flex-none">
                 <MessageCircle size={18} className={lang === 'ar' ? 'ml-2' : 'mr-2'} />
                 {t.workerDashboard.contactAdmin}
@@ -344,7 +431,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{t.itemsBreakdown}</h4>
                         <div className="space-y-4">
                             {sale.items.map((item, idx) => (
-                                <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4 relative group hover:border-primary-100 transition-colors">
+                                <div key={idx} className={`bg-white p-5 rounded-2xl border shadow-sm flex flex-col gap-4 relative group transition-colors ${item.status === 'Needs Revision' ? 'border-red-200 ring-2 ring-red-50' : 'border-slate-200 hover:border-primary-100'}`}>
                                     <div className="absolute top-4 right-4 text-xs font-bold text-slate-200 group-hover:text-primary-100 transition-colors text-6xl opacity-20 pointer-events-none">
                                         #{idx + 1}
                                     </div>
@@ -355,7 +442,19 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects
                                                 <span className="text-base font-bold text-slate-800">{item.name || 'Untitled Task'}</span>
                                                 {getTaskTypeBadge(item.type)}
                                             </div>
-                                            {/* Attachments */}
+                                            
+                                            {/* NEEDS REVISION WARNING */}
+                                            {item.status === 'Needs Revision' && (
+                                                <div className="mb-3 bg-red-50 border border-red-100 text-red-700 p-3 rounded-xl flex items-start gap-3">
+                                                    <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" />
+                                                    <div>
+                                                        <p className="text-xs font-bold uppercase mb-1">{t.tasks.rejectionReason}</p>
+                                                        <p className="text-sm">{item.rejectionNote || 'No reason provided.'}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Reference Attachments */}
                                             {item.attachments && item.attachments.length > 0 && (
                                                 <div className="flex flex-wrap gap-2 mt-2">
                                                     {item.attachments.map((att, attIdx) => (
@@ -373,13 +472,31 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ currentUser, projects
                                                 </div>
                                             )}
                                         </div>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); cycleStatus(sale.projectId, sale.id, idx, item.status); }}
-                                            className={`px-4 py-2 rounded-xl border flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-sm ${getItemStatusColor(item.status)}`}
-                                        >
-                                            {getItemStatusIcon(item.status)}
-                                            <span className="text-sm font-bold">{t.itemStatuses[item.status]}</span>
-                                        </button>
+                                        
+                                        <div className="flex flex-col items-end gap-2">
+                                            {/* Action Buttons */}
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); cycleStatus(sale.projectId, sale.id, idx, item.status); }}
+                                                className={`px-4 py-2 rounded-xl border flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-sm ${getItemStatusColor(item.status)}`}
+                                            >
+                                                {getItemStatusIcon(item.status)}
+                                                <span className="text-sm font-bold">{t.itemStatuses[item.status]}</span>
+                                            </button>
+
+                                            {/* Upload Deliverable Button */}
+                                            <label className="cursor-pointer flex items-center gap-2 bg-white border border-green-200 text-green-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-50 transition-colors shadow-sm">
+                                                <Upload size={14} />
+                                                {t.tasks.uploadDeliverable}
+                                                <input type="file" className="hidden" accept="audio/*,application/pdf,image/*,video/*" onChange={(e) => handleDeliverableUpload(sale.projectId, sale.id, idx, e)} />
+                                            </label>
+
+                                            {/* Show uploaded deliverables */}
+                                            {item.deliverables && item.deliverables.length > 0 && (
+                                                <div className="flex items-center gap-1 text-[10px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded-md">
+                                                    <FileCheck size={12} /> {item.deliverables.length} {t.tasks.deliverablesUploaded}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Script / Description */}
