@@ -35,6 +35,7 @@ export const ServiceBadge: React.FC<{ type: ServiceType; lang?: 'en' | 'ar' }> =
     [ServiceType.VideoAds]: 'from-indigo-50 to-blue-50 text-indigo-700 border-indigo-100',
     [ServiceType.LandingPage]: 'from-pink-50 to-rose-50 text-pink-700 border-pink-100',
     [ServiceType.VoiceOver]: 'from-orange-50 to-amber-50 text-orange-700 border-orange-100',
+    [ServiceType.LogoCreation]: 'from-violet-50 to-purple-50 text-violet-700 border-violet-100',
   };
   return (
     <span className={`px-2 py-1 rounded-lg text-xs font-bold border bg-gradient-to-r ${colors[type]}`}>

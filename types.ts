@@ -2,7 +2,8 @@
 export enum ServiceType {
   VideoAds = 'Video Ads',
   LandingPage = 'Landing Page',
-  VoiceOver = 'Voice Over'
+  VoiceOver = 'Voice Over',
+  LogoCreation = 'Logo Creation'
 }
 
 export enum SaleStatus {

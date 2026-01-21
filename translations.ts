@@ -141,6 +141,7 @@ export const translations = {
       [ServiceType.VideoAds]: 'Video Ads',
       [ServiceType.LandingPage]: 'Landing Page',
       [ServiceType.VoiceOver]: 'Voice Over',
+      [ServiceType.LogoCreation]: 'Logo Creation',
     },
     taskTypes: {
       [TaskType.General]: 'General Task',
@@ -354,6 +355,7 @@ export const translations = {
       [ServiceType.VideoAds]: 'إعلانات فيديو',
       [ServiceType.LandingPage]: 'صفحة هبوط',
       [ServiceType.VoiceOver]: 'تعليق صوتي',
+      [ServiceType.LogoCreation]: 'تصميم شعار',
     },
     taskTypes: {
       [TaskType.General]: 'مهمة عامة',
