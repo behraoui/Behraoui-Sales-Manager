@@ -713,6 +713,23 @@ const App = () => {
       return projects.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [projects, searchTerm, activeProjectId]);
 
+  // Global Search for Clients across all projects
+  const globalSearchResults = useMemo(() => {
+    if (!searchTerm || activeProjectId) return [];
+    const results: { client: Sale; projectName: string; projectId: string }[] = [];
+    projects.forEach(p => {
+      (p.clients || []).forEach(c => {
+        if (
+             (c.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+             (c.phoneNumber || '').includes(searchTerm)
+        ) {
+          results.push({ client: c, projectName: p.name, projectId: p.id });
+        }
+      });
+    });
+    return results;
+  }, [projects, searchTerm, activeProjectId]);
+
   const handleSaveClient = async (client: Sale) => {
     if (!activeProjectId) return;
     setProjects(prev => prev.map(p => {
@@ -1377,22 +1394,99 @@ const App = () => {
         )}
 
         {currentView === 'dashboard' && !activeProjectId && (
-            <div className="animate-fade-in">
-                {filteredProjects.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-center">
-                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                            <FolderPlus size={32} className="text-slate-300" />
+            <div className="animate-fade-in space-y-8">
+                {/* Global Search Input */}
+                <div className="relative max-w-md">
+                    <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-3 text-slate-400`} size={20} />
+                    <input 
+                        type="text" 
+                        placeholder={language === 'ar' ? 'بحث عن عميل أو مشروع...' : 'Search for a client or project...'}
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
+                        className={`w-full ${language === 'ar' ? 'pr-10' : 'pl-10'} py-3 rounded-xl border border-slate-200 shadow-sm outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all`}
+                    />
+                </div>
+
+                {searchTerm ? (
+                    /* Search Mode with Global Client Results */
+                    <div className="space-y-8">
+                         {globalSearchResults.length > 0 && (
+                           <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                    <Users size={16} />
+                                    {language === 'ar' ? 'العملاء' : 'Clients'} ({globalSearchResults.length})
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {globalSearchResults.map(({ client, projectId, projectName }) => (
+                                        <div 
+                                            key={client.id}
+                                            onClick={() => {
+                                                setActiveProjectId(projectId);
+                                                setSearchTerm(client.clientName);
+                                            }}
+                                            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-primary-200 cursor-pointer transition-all group"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getAvatarColor(client.clientName)}`}>
+                                                    {client.clientName.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-slate-800 group-hover:text-primary-600 transition-colors">{client.clientName}</h4>
+                                                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                                                        <FolderKanban size={10} /> {projectName}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="mt-3 flex items-center justify-between">
+                                                <StatusBadge status={client.status} lang={language} />
+                                                <ServiceBadge type={client.serviceType} lang={language} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                           </div>
+                        )}
+
+                        <div className="space-y-4">
+                            {filteredProjects.length > 0 && (
+                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                    <FolderKanban size={16} />
+                                    {language === 'ar' ? 'المشاريع' : 'Projects'} ({filteredProjects.length})
+                                </h3>
+                            )}
+                            {filteredProjects.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {filteredProjects.map(project => renderProjectCard(project))}
+                                </div>
+                            ) : (
+                                globalSearchResults.length === 0 && (
+                                    <div className="text-center py-12 text-slate-400">
+                                        <p>{language === 'ar' ? 'لا توجد نتائج مطابقة.' : 'No results found.'}</p>
+                                    </div>
+                                )
+                            )}
                         </div>
-                        <h3 className="text-lg font-bold text-slate-800">{t.noProjectsFound}</h3>
-                        <p className="text-slate-400 text-sm mt-1 mb-6 max-w-md">{language === 'ar' ? 'ابدأ بإنشاء مشروع جديد لتنظيم عملائك ومهامك.' : 'Get started by creating a new project to organize your clients and tasks.'}</p>
-                        <Button onClick={() => setIsProjectModalOpen(true)}>
-                            <Plus size={18} className={language === 'ar' ? 'ml-2' : 'mr-2'} />
-                            {t.createProject}
-                        </Button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredProjects.map(project => renderProjectCard(project))}
+                    /* Default Dashboard View (No Search) */
+                    <div>
+                         {filteredProjects.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-center">
+                                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                    <FolderPlus size={32} className="text-slate-300" />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800">{t.noProjectsFound}</h3>
+                                <p className="text-slate-400 text-sm mt-1 mb-6 max-w-md">{language === 'ar' ? 'ابدأ بإنشاء مشروع جديد لتنظيم عملائك ومهامك.' : 'Get started by creating a new project to organize your clients and tasks.'}</p>
+                                <Button onClick={() => setIsProjectModalOpen(true)}>
+                                    <Plus size={18} className={language === 'ar' ? 'ml-2' : 'mr-2'} />
+                                    {t.createProject}
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {filteredProjects.map(project => renderProjectCard(project))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
