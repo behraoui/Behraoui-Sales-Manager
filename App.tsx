@@ -44,6 +44,7 @@ import {
   ArrowUpDown,
   UserCog,
   Check,
+  CheckCircle,
   Loader2,
   WifiOff,
   Phone,
@@ -760,6 +761,24 @@ const App = () => {
       return true;
     }
     return false;
+  };
+
+  const handleMarkAsPaid = async (e: React.MouseEvent, client: Sale) => {
+    e.stopPropagation();
+    if (window.confirm(language === 'ar' ? 'هل أنت متأكد من تحديد جميع العناصر لهذا العميل كمدفوعة؟' : 'Are you sure you want to mark all items for this client as paid?')) {
+        const updatedItems = (client.items || []).map(i => ({ ...i, isPaid: true }));
+        const updatedClient = { ...client, items: updatedItems };
+        
+        setProjects(prev => prev.map(p => {
+            if (p.id !== activeProjectId) return p;
+            return {
+                ...p,
+                clients: p.clients.map(c => c.id === client.id ? updatedClient : c)
+            };
+        }));
+        
+        await api.saveSale(activeProjectId!, updatedClient);
+    }
   };
 
   const handleExport = () => {
@@ -1654,6 +1673,11 @@ const App = () => {
                                             <button onClick={(e) => {e.stopPropagation(); handleWhatsApp(client.phoneNumber);}} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-green-600 hover:border-green-200 rounded-xl shadow-sm hover:shadow-md transition-all" title={t.whatsapp}>
                                                 <MessageCircle size={16} />
                                             </button>
+                                            {!client.items.every(i => i.isPaid) && (
+                                              <button onClick={(e) => handleMarkAsPaid(e, client)} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-emerald-600 hover:border-emerald-200 rounded-xl shadow-sm hover:shadow-md transition-all" title={t.markAsPaid}>
+                                                  <CheckCircle size={16} />
+                                              </button>
+                                            )}
                                             <button onClick={(e) => {e.stopPropagation(); setEditingSale(client); setIsFormOpen(true);}} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 rounded-xl shadow-sm hover:shadow-md transition-all" title={t.editProject}>
                                                 <Edit2 size={16} />
                                             </button>
