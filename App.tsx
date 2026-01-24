@@ -45,6 +45,7 @@ import {
   UserCog,
   Check,
   CheckCircle,
+  Circle,
   Loader2,
   WifiOff,
   Phone,
@@ -763,10 +764,17 @@ const App = () => {
     return false;
   };
 
-  const handleMarkAsPaid = async (e: React.MouseEvent, client: Sale) => {
+  const handleTogglePaymentStatus = async (e: React.MouseEvent, client: Sale) => {
     e.stopPropagation();
-    if (window.confirm(language === 'ar' ? 'هل أنت متأكد من تحديد جميع العناصر لهذا العميل كمدفوعة؟' : 'Are you sure you want to mark all items for this client as paid?')) {
-        const updatedItems = (client.items || []).map(i => ({ ...i, isPaid: true }));
+    const isFullyPaid = client.items.length > 0 && client.items.every(i => i.isPaid);
+    const newStatus = !isFullyPaid;
+    
+    const confirmMessage = newStatus 
+        ? (language === 'ar' ? 'هل أنت متأكد من تحديد جميع العناصر لهذا العميل كمدفوعة؟' : 'Are you sure you want to mark all items for this client as paid?')
+        : (language === 'ar' ? 'هل أنت متأكد من تحديد جميع العناصر لهذا العميل كغير مدفوعة؟' : 'Are you sure you want to mark all items for this client as unpaid?');
+
+    if (window.confirm(confirmMessage)) {
+        const updatedItems = (client.items || []).map(i => ({ ...i, isPaid: newStatus }));
         const updatedClient = { ...client, items: updatedItems };
         
         setProjects(prev => prev.map(p => {
@@ -1673,11 +1681,17 @@ const App = () => {
                                             <button onClick={(e) => {e.stopPropagation(); handleWhatsApp(client.phoneNumber);}} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-green-600 hover:border-green-200 rounded-xl shadow-sm hover:shadow-md transition-all" title={t.whatsapp}>
                                                 <MessageCircle size={16} />
                                             </button>
-                                            {!client.items.every(i => i.isPaid) && (
-                                              <button onClick={(e) => handleMarkAsPaid(e, client)} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-emerald-600 hover:border-emerald-200 rounded-xl shadow-sm hover:shadow-md transition-all" title={t.markAsPaid}>
-                                                  <CheckCircle size={16} />
-                                              </button>
-                                            )}
+                                            <button 
+                                                onClick={(e) => handleTogglePaymentStatus(e, client)} 
+                                                className={`p-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all ${
+                                                    client.items.length > 0 && client.items.every(i => i.isPaid)
+                                                    ? 'text-emerald-600 border-emerald-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200' 
+                                                    : 'text-slate-400 hover:text-emerald-600 hover:border-emerald-200'
+                                                }`}
+                                                title={client.items.length > 0 && client.items.every(i => i.isPaid) ? t.markAsUnpaid : t.markAsPaid}
+                                            >
+                                                {client.items.length > 0 && client.items.every(i => i.isPaid) ? <CheckCircle size={16} /> : <Circle size={16} />}
+                                            </button>
                                             <button onClick={(e) => {e.stopPropagation(); setEditingSale(client); setIsFormOpen(true);}} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 rounded-xl shadow-sm hover:shadow-md transition-all" title={t.editProject}>
                                                 <Edit2 size={16} />
                                             </button>
