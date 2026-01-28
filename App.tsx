@@ -775,7 +775,14 @@ const App = () => {
 
     if (window.confirm(confirmMessage)) {
         const updatedItems = (client.items || []).map(i => ({ ...i, isPaid: newStatus }));
-        const updatedClient = { ...client, items: updatedItems };
+        
+        // Auto-switch status to Paid if marking as Paid
+        let newSaleStatus = client.status;
+        if (newStatus) {
+            newSaleStatus = SaleStatus.Paid;
+        }
+
+        const updatedClient = { ...client, items: updatedItems, status: newSaleStatus };
         
         setProjects(prev => prev.map(p => {
             if (p.id !== activeProjectId) return p;

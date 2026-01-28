@@ -19,6 +19,7 @@ export const StatusBadge: React.FC<{ status: SaleStatus; lang?: 'en' | 'ar' }> =
     [SaleStatus.Contacted]: 'bg-yellow-50 text-yellow-700 border border-yellow-100',
     [SaleStatus.InProgress]: 'bg-purple-50 text-purple-700 border border-purple-100',
     [SaleStatus.Delivered]: 'bg-green-50 text-green-700 border border-green-100',
+    [SaleStatus.Paid]: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
     [SaleStatus.ClosedLost]: 'bg-slate-100 text-slate-500 border border-slate-200',
     [SaleStatus.Scammer]: 'bg-red-950 text-red-200 border border-red-900',
   };

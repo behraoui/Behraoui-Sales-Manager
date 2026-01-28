@@ -136,6 +136,7 @@ export const translations = {
       [SaleStatus.Contacted]: 'Contacted',
       [SaleStatus.InProgress]: 'In Progress',
       [SaleStatus.Delivered]: 'Delivered',
+      [SaleStatus.Paid]: 'Paid',
       [SaleStatus.ClosedLost]: 'Closed Lost',
       [SaleStatus.Scammer]: 'Scammer'
     },
@@ -352,6 +353,7 @@ export const translations = {
       [SaleStatus.Contacted]: 'تم التواصل',
       [SaleStatus.InProgress]: 'قيد العمل',
       [SaleStatus.Delivered]: 'تم التسليم',
+      [SaleStatus.Paid]: 'مدفوع',
       [SaleStatus.ClosedLost]: 'مغلق/خسارة',
       [SaleStatus.Scammer]: 'محتال'
     },

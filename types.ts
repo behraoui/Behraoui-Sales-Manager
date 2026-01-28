@@ -11,6 +11,7 @@ export enum SaleStatus {
   Contacted = 'Contacted',
   InProgress = 'In Progress',
   Delivered = 'Delivered',
+  Paid = 'Paid',
   ClosedLost = 'Closed Lost',
   Scammer = 'Scammer'
 }
