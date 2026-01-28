@@ -4,7 +4,7 @@ import { Sale, SaleStatus, ServiceType, SaleItem, Reminder, ItemStatus, User, Ta
 import { Button, Input, Select } from './UIComponents';
 import { translations } from '../translations';
 import { generateCreativeScript } from '../services/geminiService';
-import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users, Sparkles, Upload, FileAudio, FileText, Image as ImageIcon, AlertTriangle, Calculator, FileCheck, Info } from 'lucide-react';
+import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users, Sparkles, Upload, FileAudio, FileText, Image as ImageIcon, AlertTriangle, Calculator, FileCheck, Info, DollarSign } from 'lucide-react';
 
 interface SalesFormProps {
   initialData?: Sale | null;
@@ -231,6 +231,17 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       });
   };
 
+  const toggleAllItemsPaymentStatus = () => {
+      setFormData(prev => {
+          const items = [...(prev.items || [])];
+          const allPaid = items.length > 0 && items.every(i => i.isPaid);
+          const newStatus = !allPaid;
+          
+          const updatedItems = items.map(i => ({ ...i, isPaid: newStatus }));
+          return { ...prev, items: updatedItems };
+      });
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -357,6 +368,25 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
           <div>
             <div className="flex justify-between items-center mb-4">
                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.itemsBreakdown}</h3>
+               {formData.items && formData.items.length > 0 && (
+                   <button 
+                       type="button" 
+                       onClick={toggleAllItemsPaymentStatus}
+                       className="text-xs font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                   >
+                       {formData.items.every(i => i.isPaid) ? (
+                           <>
+                               <Circle size={14} />
+                               {t.markAsUnpaid}
+                           </>
+                       ) : (
+                           <>
+                               <CheckCircle2 size={14} />
+                               {t.markAsPaid}
+                           </>
+                       )}
+                   </button>
+               )}
             </div>
             
             <div className="space-y-6">
