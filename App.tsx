@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Sale, SaleStatus, Project, ServiceType, User, UserRole, ItemStatus, Reminder, GlobalNotification, ChatMessage } from './types';
+import { Sale, SaleStatus, Project, ServiceType, User, UserRole, ItemStatus, Reminder, GlobalNotification, ChatMessage, Goal } from './types';
 import { StatusBadge, ServiceBadge, Button, Card, PaymentStatusBadge, Input, Select, ModificationBadge } from './components/UIComponents';
 import SalesForm from './components/SalesForm';
 import Copilot from './components/Copilot';
@@ -8,6 +8,7 @@ import LoginPage from './components/LoginPage';
 import TeamManager from './components/TeamManager';
 import WorkerDashboard from './components/WorkerDashboard';
 import ChatSystem from './components/ChatSystem';
+import GoalWidget from './components/GoalWidget';
 import { api } from './services/api';
 import { supabase } from './services/supabaseClient';
 import { translations } from './translations';
@@ -53,7 +54,9 @@ import {
   PieChart as PieChartIcon,
   Percent,
   Settings,
-  Archive
+  Archive,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -61,6 +64,7 @@ const COLORS = ['#0ea5e9', '#ec4899', '#f97316', '#10b981', '#6366f1'];
 
 type TimeRange = 'all' | 'today' | 'yesterday' | 'last7Days' | 'thisMonth' | 'lastMonth' | 'custom';
 type View = 'dashboard' | 'analytics' | 'team';
+type ProjectViewMode = 'grid' | 'list';
 
 // Helper for random avatar colors
 const getAvatarColor = (name: string) => {
@@ -108,6 +112,16 @@ const App = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalNotifications, setGlobalNotifications] = useState<GlobalNotification[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+
+  // Project View State
+  const [projectViewMode, setProjectViewMode] = useState<ProjectViewMode>(() => {
+    return (localStorage.getItem('nexus_project_view') as ProjectViewMode) || 'grid';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('nexus_project_view', projectViewMode);
+  }, [projectViewMode]);
 
   // Initialize Data
   useEffect(() => {
@@ -125,6 +139,7 @@ const App = () => {
       setUsers(data.users);
       setGlobalNotifications(data.notifications);
       setChatMessages(data.messages);
+      setGoals(data.goals);
       
       setIsLoading(false);
     };
@@ -360,6 +375,17 @@ const App = () => {
     if (cleanNumber) {
         window.open(`https://wa.me/${cleanNumber}`, '_blank');
     }
+  };
+
+  // --- GOAL HANDLERS ---
+  const handleCreateGoal = async (goal: Goal) => {
+      setGoals(prev => [goal, ...prev]);
+      await api.createGoal(goal);
+  };
+
+  const handleDeleteGoal = async (id: string) => {
+      setGoals(prev => prev.filter(g => g.id !== id));
+      await api.deleteGoal(id);
   };
 
   // --- NOTIFICATION & CHAT LOGIC ---
@@ -879,7 +905,7 @@ const App = () => {
         <div 
             key={project.id} 
             onClick={() => { setActiveProjectId(project.id); setSearchTerm(''); }}
-            className="group bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-primary-200 transition-all relative overflow-hidden flex flex-col justify-between"
+            className="group bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-primary-200 transition-all relative overflow-hidden flex flex-col justify-between animate-fade-in"
         >
             <div>
                 <div className="flex justify-between items-start mb-4">
@@ -1222,10 +1248,28 @@ const App = () => {
                     {t.newClient}
                     </Button>
                 ) : (
-                    <Button onClick={() => setIsProjectModalOpen(true)} className="shadow-lg shadow-primary-500/20 flex-1 md:flex-none">
-                    <FolderPlus size={18} className={`${language === 'ar' ? 'ml-2' : 'mr-2'}`} />
-                    {t.createProject}
-                    </Button>
+                    <div className="flex gap-2 w-full md:w-auto">
+                        <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                            <button 
+                                onClick={() => setProjectViewMode('grid')}
+                                className={`p-1.5 rounded-lg transition-all ${projectViewMode === 'grid' ? 'bg-primary-50 text-primary-600' : 'text-slate-400 hover:bg-slate-50'}`}
+                                title={t.viewModes.grid}
+                            >
+                                <LayoutGrid size={18} />
+                            </button>
+                            <button 
+                                onClick={() => setProjectViewMode('list')}
+                                className={`p-1.5 rounded-lg transition-all ${projectViewMode === 'list' ? 'bg-primary-50 text-primary-600' : 'text-slate-400 hover:bg-slate-50'}`}
+                                title={t.viewModes.list}
+                            >
+                                <List size={18} />
+                            </button>
+                        </div>
+                        <Button onClick={() => setIsProjectModalOpen(true)} className="shadow-lg shadow-primary-500/20 flex-1 md:flex-none">
+                            <FolderPlus size={18} className={`${language === 'ar' ? 'ml-2' : 'mr-2'}`} />
+                            {t.createProject}
+                        </Button>
+                    </div>
                 )
             )}
           </div>
@@ -1429,6 +1473,16 @@ const App = () => {
 
         {currentView === 'dashboard' && !activeProjectId && (
             <div className="animate-fade-in space-y-8">
+                
+                {/* Goal Widget - Placed at top of dashboard */}
+                <GoalWidget 
+                   goals={goals} 
+                   projects={projects} 
+                   onCreateGoal={handleCreateGoal} 
+                   onDeleteGoal={handleDeleteGoal}
+                   lang={language}
+                />
+
                 {/* Global Search Input */}
                 <div className="relative max-w-md">
                     <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-3 text-slate-400`} size={20} />
@@ -1516,9 +1570,82 @@ const App = () => {
                                     {t.createProject}
                                 </Button>
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ) : projectViewMode === 'grid' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
                                 {filteredProjects.map(project => renderProjectCard(project))}
+                            </div>
+                        ) : (
+                            /* Project List View (New) */
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                                                <th className="px-6 py-4">{t.projectName}</th>
+                                                <th className="px-6 py-4">{t.projectCreated}</th>
+                                                <th className="px-6 py-4 text-center">{t.totalClients}</th>
+                                                <th className="px-6 py-4">{t.expenses}</th>
+                                                <th className="px-6 py-4">{t.potentialProfit}</th>
+                                                <th className="px-6 py-4">{t.roi}</th>
+                                                <th className="px-6 py-4 text-right">{t.actions}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {filteredProjects.map((project) => {
+                                                const totalPotentialRevenue = (project.clients || []).reduce((acc, c) => acc + (c.price * (c.items || []).length), 0);
+                                                const expenses = project.cost || 0;
+                                                const potentialProfit = totalPotentialRevenue - expenses;
+                                                const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(0) : '∞';
+                                                
+                                                return (
+                                                    <tr 
+                                                        key={project.id} 
+                                                        onClick={() => { setActiveProjectId(project.id); setSearchTerm(''); }}
+                                                        className="group hover:bg-slate-50/80 cursor-pointer transition-colors"
+                                                    >
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                                                    <FolderKanban size={18} />
+                                                                </div>
+                                                                <span className="font-bold text-slate-800">{project.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm text-slate-500">
+                                                            {new Date(project.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold">
+                                                                {project.clients.length}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm font-medium text-slate-600">
+                                                            {expenses.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">MAD</span>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`text-sm font-bold ${potentialProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                                {potentialProfit >= 0 ? '+' : ''}{potentialProfit.toLocaleString()} <span className="text-[10px] font-normal opacity-60">MAD</span>
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${roi === '∞' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}>
+                                                                {roi}% ROI
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            <button 
+                                                                onClick={(e) => handleDeleteProject(e, project.id)}
+                                                                className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
                     </div>

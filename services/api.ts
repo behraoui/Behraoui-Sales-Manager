@@ -1,6 +1,6 @@
 
 import { supabase } from './supabaseClient';
-import { Project, User, Sale, SaleItem, Reminder, GlobalNotification, ChatMessage, SaleStatus, ServiceType, TaskType, ItemStatus, WorkerStatus } from '../types';
+import { Project, User, Sale, SaleItem, Reminder, GlobalNotification, ChatMessage, SaleStatus, ServiceType, TaskType, ItemStatus, WorkerStatus, Goal } from '../types';
 
 // Helper to construct nested Project data from flat DB tables
 export const api = {
@@ -16,7 +16,8 @@ export const api = {
         { data: remindersData },
         { data: usersData, error: usersError },
         { data: notificationsData },
-        { data: messagesData }
+        { data: messagesData },
+        { data: goalsData }
       ] = await Promise.all([
         supabase.from('projects').select('*').order('created_at', { ascending: false }),
         supabase.from('sales').select('*').order('lead_date', { ascending: false }),
@@ -25,7 +26,8 @@ export const api = {
         supabase.from('reminders').select('*'),
         supabase.from('users').select('*'),
         supabase.from('notifications').select('*').order('created_at', { ascending: false }),
-        supabase.from('chat_messages').select('*').order('created_at', { ascending: true })
+        supabase.from('chat_messages').select('*').order('created_at', { ascending: true }),
+        supabase.from('goals').select('*').order('created_at', { ascending: false })
       ]);
 
       if (projectsError) console.error("Projects Fetch Error:", JSON.stringify(projectsError, null, 2));
@@ -137,11 +139,21 @@ export const api = {
         read: m.is_read
       }));
 
-      return { projects, users, notifications, messages };
+      // Map Goals
+      const goals: Goal[] = (goalsData || []).map(g => ({
+        id: g.id,
+        type: g.type,
+        targetAmount: g.target_amount,
+        startDate: g.start_date,
+        endDate: g.end_date,
+        createdAt: g.created_at
+      }));
+
+      return { projects, users, notifications, messages, goals };
 
     } catch (err) {
       console.error("Error fetching data from Supabase:", err);
-      return { projects: [], users: [], notifications: [], messages: [] };
+      return { projects: [], users: [], notifications: [], messages: [], goals: [] };
     }
   },
 
@@ -274,6 +286,24 @@ export const api = {
   async deleteUser(id: string) {
     const { error } = await supabase.from('users').delete().eq('id', id);
     if (error) console.error("Error deleting user:", JSON.stringify(error, null, 2));
+  },
+
+  // --- GOALS ---
+  async createGoal(goal: Goal) {
+    const { error } = await supabase.from('goals').insert({
+      id: goal.id,
+      type: goal.type,
+      target_amount: goal.targetAmount,
+      start_date: goal.startDate,
+      end_date: goal.endDate,
+      created_at: goal.createdAt
+    });
+    if (error) console.error("Error creating goal:", JSON.stringify(error, null, 2));
+  },
+
+  async deleteGoal(id: string) {
+    const { error } = await supabase.from('goals').delete().eq('id', id);
+    if (error) console.error("Error deleting goal:", JSON.stringify(error, null, 2));
   },
 
   // --- NOTIFICATIONS & CHAT ---

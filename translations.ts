@@ -125,6 +125,26 @@ export const translations = {
     update: 'Update',
     activeClients: 'Active Clients',
     paidHistory: 'Paid History',
+    viewModes: {
+      grid: 'Grid View',
+      list: 'List View'
+    },
+    goals: {
+        title: 'Sales Goal',
+        setGoal: 'Set New Goal',
+        weekly: 'Weekly Goal',
+        monthly: 'Monthly Goal',
+        target: 'Target',
+        achieved: 'Achieved',
+        remaining: 'Remaining',
+        timeLeft: 'Time Left',
+        days: 'days',
+        create: 'Create Goal',
+        noActiveGoal: 'No active goal for this period.',
+        congrats: 'Goal Achieved! 🎉',
+        keepGoing: 'Keep pushing!',
+        delete: 'Delete Goal'
+    },
     itemStatuses: {
       Pending: 'Pending',
       'In Progress': 'In Progress',
@@ -342,6 +362,26 @@ export const translations = {
     update: 'تحديث',
     activeClients: 'العملاء النشطون',
     paidHistory: 'سجل المدفوعات',
+    viewModes: {
+      grid: 'عرض المربعات',
+      list: 'عرض القائمة'
+    },
+    goals: {
+        title: 'هدف المبيعات',
+        setGoal: 'تحديد هدف جديد',
+        weekly: 'هدف أسبوعي',
+        monthly: 'هدف شهري',
+        target: 'الهدف',
+        achieved: 'المحقق',
+        remaining: 'المتبقي',
+        timeLeft: 'الوقت المتبقي',
+        days: 'أيام',
+        create: 'إنشاء الهدف',
+        noActiveGoal: 'لا يوجد هدف نشط لهذه الفترة.',
+        congrats: 'تم تحقيق الهدف! 🎉',
+        keepGoing: 'استمر في العمل!',
+        delete: 'حذف الهدف'
+    },
     itemStatuses: {
       Pending: 'قيد الانتظار',
       'In Progress': 'قيد العمل',

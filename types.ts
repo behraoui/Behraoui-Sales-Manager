@@ -115,6 +115,15 @@ export interface Project {
   cost?: number; // Project Budget/Expenses for ROI calculation
 }
 
+export interface Goal {
+  id: string;
+  type: 'weekly' | 'monthly';
+  targetAmount: number;
+  startDate: string; // ISO Date
+  endDate: string; // ISO Date
+  createdAt: string;
+}
+
 export interface Stats {
   totalRevenue: number;
   totalSales: number;

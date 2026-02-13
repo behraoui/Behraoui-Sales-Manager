@@ -1,3 +1,4 @@
+
 import React, { ErrorInfo, ReactNode } from 'react';
 import { RefreshCcw, AlertTriangle } from 'lucide-react';
 
@@ -10,11 +11,17 @@ interface State {
   error: Error | null;
 }
 
+// Error Boundary must be a class component. 
+// Adding a constructor with super(props) ensures 'this.props' is correctly initialized and typed.
 class ErrorBoundary extends React.Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: null
-  };
+  // Fix: Explicitly initialize state and call super(props) to avoid 'props does not exist' error in some TS environments.
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null
+    };
+  }
 
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
@@ -57,6 +64,7 @@ class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
+    // Fixed: 'this.props' is now correctly inherited and recognized by the compiler.
     return this.props.children;
   }
 }
