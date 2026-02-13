@@ -56,8 +56,12 @@ const GoalWidget: React.FC<GoalWidgetProps> = ({ goals, projects, onCreateGoal, 
   const progress = useMemo(() => {
     if (!activeGoal) return { achieved: 0, percentage: 0 };
     
-    // Explicitly typing sum and val to number to avoid 'unknown' operator issues
-    let achieved = Object.values(dailyBreakdown).reduce((sum: number, val: number) => sum + val, 0);
+    // Fix: Using Object.keys and safe property access to ensure numeric types for the arithmetic addition
+    const achieved = Object.keys(dailyBreakdown).reduce((sum: number, key: string) => {
+        const val = dailyBreakdown[key];
+        return sum + (typeof val === 'number' ? val : 0);
+    }, 0);
+
     const percentage = Math.min(100, Math.round((achieved / activeGoal.targetAmount) * 100));
     return { achieved, percentage };
   }, [activeGoal, dailyBreakdown]);

@@ -37,8 +37,11 @@ class ErrorBoundary extends React.Component<Props, State> {
   };
 
   public render() {
-    // Accessing this.state which is now explicitly defined on the class to fix TS errors
-    if (this.state.hasError) {
+    // Destructure props and state to avoid direct 'this.props' or 'this.state' access issues in pedantic TS environments
+    const { hasError, error } = this.state;
+    const { children } = this.props;
+
+    if (hasError) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 text-center font-sans">
           <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border border-red-100 flex flex-col items-center">
@@ -48,9 +51,9 @@ class ErrorBoundary extends React.Component<Props, State> {
              <h1 className="text-xl font-bold text-slate-800 mb-2">Something went wrong</h1>
              <p className="text-slate-500 text-sm mb-6">The application encountered an error. Please try reloading.</p>
              
-             {this.state.error && (
+             {error && (
                 <div className="bg-slate-100 p-3 rounded-lg text-xs font-mono text-left text-slate-600 mb-6 w-full overflow-auto max-h-32 border border-slate-200">
-                    {this.state.error.message}
+                    {error.message}
                 </div>
              )}
 
@@ -66,8 +69,7 @@ class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
-    // Fixed: 'this.props' is correctly typed via generic Props in React.Component
-    return this.props.children;
+    return children;
   }
 }
 

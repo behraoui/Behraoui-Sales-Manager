@@ -159,7 +159,6 @@ export const api = {
 
   // --- PROJECTS ---
   async createProject(project: Project) {
-    // Changed to upsert to support imports and updates safely
     const { error } = await supabase.from('projects').upsert({
       id: project.id,
       name: project.name,
@@ -183,9 +182,7 @@ export const api = {
   },
 
   // --- SALES (CLIENTS) ---
-  // This function saves a sale and all its sub-entities (items, reminders, assignments)
   async saveSale(projectId: string, sale: Sale) {
-    // 1. Upsert Sale
     const { error: saleError } = await supabase.from('sales').upsert({
       id: sale.id,
       project_id: projectId,
@@ -199,12 +196,9 @@ export const api = {
       sent_date: sale.sentDate,
       team_instructions: sale.teamInstructions,
       has_client_modifications: sale.hasClientModifications,
-      // preserve sequence_number if it exists/auto-gen handled by DB default
     });
     if (saleError) return console.error('Error saving sale:', JSON.stringify(saleError, null, 2));
 
-    // 2. Sync Items (Strategy: Delete all for this sale and re-insert to handle order/changes easily)
-    // Note: In production, better diffing is recommended, but this guarantees consistency for now.
     await supabase.from('sale_items').delete().eq('sale_id', sale.id);
     
     if (sale.items.length > 0) {
@@ -216,14 +210,13 @@ export const api = {
         type: i.type,
         description: i.description,
         attachments: i.attachments,
-        deliverables: i.deliverables, // Save deliverables
-        rejection_note: i.rejectionNote // Save rejection note
+        deliverables: i.deliverables,
+        rejection_note: i.rejectionNote
       }));
       const { error: itemsError } = await supabase.from('sale_items').insert(itemsPayload);
       if (itemsError) console.error('Error saving items:', JSON.stringify(itemsError, null, 2));
     }
 
-    // 3. Sync Assignments
     await supabase.from('sale_assignments').delete().eq('sale_id', sale.id);
     if (sale.assignedWorkerIds && sale.assignedWorkerIds.length > 0) {
       const assignPayload = sale.assignedWorkerIds.map(uid => ({
@@ -233,7 +226,6 @@ export const api = {
       await supabase.from('sale_assignments').insert(assignPayload);
     }
 
-    // 4. Sync Reminders
     if (sale.reminders) {
         for (const r of sale.reminders) {
             await supabase.from('reminders').upsert({
@@ -278,7 +270,7 @@ export const api = {
       name: user.name,
       role: user.role,
       avatar: user.avatar,
-      worker_status: user.workerStatus // Update status
+      worker_status: user.workerStatus
     }).eq('id', user.id);
     if (error) console.error("Error updating user:", JSON.stringify(error, null, 2));
   },
@@ -290,7 +282,8 @@ export const api = {
 
   // --- GOALS ---
   async createGoal(goal: Goal) {
-    const { error } = await supabase.from('goals').insert({
+    // Fixed: Using upsert for goals persistence
+    const { error } = await supabase.from('goals').upsert({
       id: goal.id,
       type: goal.type,
       target_amount: goal.targetAmount,
@@ -298,7 +291,7 @@ export const api = {
       end_date: goal.endDate,
       created_at: goal.createdAt
     });
-    if (error) console.error("Error creating goal:", JSON.stringify(error, null, 2));
+    if (error) console.error("Error saving goal:", JSON.stringify(error, null, 2));
   },
 
   async deleteGoal(id: string) {
