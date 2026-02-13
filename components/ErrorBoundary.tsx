@@ -12,15 +12,16 @@ interface State {
 }
 
 // Error Boundary must be a class component. 
-// Adding a constructor with super(props) ensures 'this.props' is correctly initialized and typed.
 class ErrorBoundary extends React.Component<Props, State> {
-  // Fix: Explicitly initialize state and call super(props) to avoid 'props does not exist' error in some TS environments.
+  // Explicitly defining state property to fix 'Property state does not exist' errors in certain environments
+  public state: State = {
+    hasError: false,
+    error: null
+  };
+
   constructor(props: Props) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null
-    };
+    // State is already initialized above, but we keep the constructor for super(props)
   }
 
   public static getDerivedStateFromError(error: Error): State {
@@ -36,6 +37,7 @@ class ErrorBoundary extends React.Component<Props, State> {
   };
 
   public render() {
+    // Accessing this.state which is now explicitly defined on the class to fix TS errors
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 text-center font-sans">
@@ -64,7 +66,7 @@ class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
-    // Fixed: 'this.props' is now correctly inherited and recognized by the compiler.
+    // Fixed: 'this.props' is correctly typed via generic Props in React.Component
     return this.props.children;
   }
 }

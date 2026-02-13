@@ -143,7 +143,11 @@ export const translations = {
         noActiveGoal: 'No active goal for this period.',
         congrats: 'Goal Achieved! 🎉',
         keepGoing: 'Keep pushing!',
-        delete: 'Delete Goal'
+        delete: 'Delete Goal',
+        dailyAnalysis: 'Daily Analysis',
+        todayProgress: 'Today\'s Progress',
+        avgNeeded: 'Needed/Day',
+        dailyBreakdown: 'Daily Breakdown'
     },
     itemStatuses: {
       Pending: 'Pending',
@@ -380,7 +384,11 @@ export const translations = {
         noActiveGoal: 'لا يوجد هدف نشط لهذه الفترة.',
         congrats: 'تم تحقيق الهدف! 🎉',
         keepGoing: 'استمر في العمل!',
-        delete: 'حذف الهدف'
+        delete: 'حذف الهدف',
+        dailyAnalysis: 'تحليل يومي',
+        todayProgress: 'إنجاز اليوم',
+        avgNeeded: 'المطلوب يومياً',
+        dailyBreakdown: 'التوزيع اليومي'
     },
     itemStatuses: {
       Pending: 'قيد الانتظار',
@@ -441,7 +449,7 @@ export const translations = {
       assignTo: 'تعيين إلى',
       instructions: 'تعليمات عامة للفريق',
       instructionsPlaceholder: 'أضف تفاصيل محددة أو روابط أو ملاحظات للفريق...',
-      noWorkers: 'لم يتم العثور على عمال. قم بإنشاء واحد في تبويب الفريق.',
+      noWorkers: 'لم يتم العور على عمال. قم بإنشاء واحد في تبويب الفريق.',
       myTasks: 'مهامي',
       assignedTasks: 'المهام المعينة',
       noTasks: 'لا توجد مهام معينة لك بعد.',
