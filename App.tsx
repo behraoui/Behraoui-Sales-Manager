@@ -377,7 +377,8 @@ const App = () => {
       return acc + clientPotential;
     }, 0);
     const expenses = project.cost || 0; const potentialProfit = totalPotentialRevenue - expenses; const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(0) : '∞'; const clientCount = (project.clients || []).length;
-    return ( <div key={project.id} onClick={() => { setActiveProjectId(project.id); setSearchTerm(''); }} className="group bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-primary-200 transition-all relative overflow-hidden flex flex-col justify-between animate-fade-in" > <div> <div className="flex justify-between items-start mb-4"> <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors"> <FolderKanban size={24} /> </div> <button onClick={(e) => handleDeleteProject(e, project.id)} className="text-slate-300 hover:text-red-500 transition-colors p-1" > <Trash2 size={16} /> </button> </div> <h3 className="font-bold text-slate-800 text-lg mb-1 truncate">{project.name}</h3> <p className="text-xs text-slate-400 mb-4">{new Date(project.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')}</p> </div> <div className="space-y-3"> <div className="flex gap-2"> <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1`}> <TrendingUp size={10} /> {roi === '∞' ? '∞' : `${roi}%`} ROI </span> <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-100"> +{potentialProfit.toLocaleString()} </span> </div> <div className="flex items-center justify-between text-sm border-t border-slate-50 pt-3"> <div className="flex items-center gap-1.5 text-slate-600"> <Users size={14} /> <span>{clientCount}</span> </div> <div className="font-bold text-slate-700 flex flex-col items-end"> <span className="text-[10px] text-slate-400 font-normal uppercase">{t.potentialProfit}</span> </div> </div> </div> </div> );
+    const activeDeliveredCount = (project.clients || []).filter(c => c.status === SaleStatus.InProgress || c.status === SaleStatus.Delivered).length;
+    return ( <div key={project.id} onClick={() => { setActiveProjectId(project.id); setSearchTerm(''); }} className="group bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-primary-200 transition-all relative overflow-hidden flex flex-col justify-between animate-fade-in" > <div> <div className="flex justify-between items-start mb-4"> <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors"> <FolderKanban size={24} /> </div> <button onClick={(e) => handleDeleteProject(e, project.id)} className="text-slate-300 hover:text-red-500 transition-colors p-1" > <Trash2 size={16} /> </button> </div> <h3 className="font-bold text-slate-800 text-lg mb-1 truncate">{project.name}</h3> <p className="text-xs text-slate-400 mb-4">{new Date(project.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')}</p> </div> <div className="space-y-3"> <div className="flex gap-2"> <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1`}> <TrendingUp size={10} /> {roi === '∞' ? '∞' : `${roi}%`} ROI </span> <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-100"> +{potentialProfit.toLocaleString()} </span> </div> <div className="flex items-center justify-between text-sm border-t border-slate-50 pt-3"> <div className="flex items-center gap-3"> <div className="flex items-center gap-1.5 text-slate-600" title={t.totalClients}> <Users size={14} /> <span>{clientCount}</span> </div> <div className="flex items-center gap-1.5 text-blue-600 font-medium" title={t.activeDelivered}> <CheckCircle size={14} /> <span>{activeDeliveredCount}</span> </div> </div> <div className="font-bold text-slate-700 flex flex-col items-end"> <span className="text-[10px] text-slate-400 font-normal uppercase">{t.potentialProfit}</span> </div> </div> </div> </div> );
   };
 
   const projectStats = useMemo(() => { 
@@ -447,7 +448,142 @@ const App = () => {
         )}
 
         {currentView === 'analytics' && (
-           <div className="animate-fade-in space-y-6"> <Card className="p-4 border border-slate-200"> <div className="flex flex-col lg:flex-row gap-4 justify-between items-center"> <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0"> <span className="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{t.timeRange}:</span> <div className="flex gap-1"> {(['today', 'yesterday', 'last7Days', 'thisMonth', 'all'] as TimeRange[]).map(range => ( <button key={range} onClick={() => setTimeRange(range)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeRange === range ? 'bg-primary-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`} > {t.ranges[range]} </button> ))} <button onClick={() => setTimeRange('custom')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeRange === 'custom' ? 'bg-primary-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`} > {t.ranges.custom} </button> </div> </div> {timeRange === 'custom' && ( <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200"> <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="bg-transparent text-xs outline-none" /> <span className="text-slate-300">-</span> <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="bg-transparent text-xs outline-none" /> </div> )} <Button variant="secondary" size="sm" onClick={handleExportCSV} className="w-full lg:w-auto"> <FileSpreadsheet size={16} className={language === 'ar' ? 'ml-2' : 'mr-2'} /> {t.exportToExcel} </Button> </div> </Card> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"> <Card className="p-5 border border-slate-200"> <div className="flex justify-between items-start"> <div> <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.revenue}</p> <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.totalRevenue.toLocaleString()} {t.mad}</h3> </div> <div className="p-2 bg-green-50 rounded-lg text-green-600"><DollarSign size={20} /></div> </div> </Card> <Card className="p-5 border border-slate-200"> <div className="flex justify-between items-start"> <div> <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.netProfit}</p> <h3 className={`text-xl font-bold mt-1 ${globalStats.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}> {globalStats.netProfit >= 0 ? '+' : ''}{globalStats.netProfit.toLocaleString()} {t.mad} </h3> </div> <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600"><TrendingUp size={20} /></div> </div> </Card> <Card className="p-5 border border-slate-200"> <div className="flex justify-between items-start"> <div> <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.leads}</p> <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.leads}</h3> </div> <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><Users size={20} /></div> </div> </Card> <Card className="p-5 border border-slate-200"> <div className="flex justify-between items-start"> <div> <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.conversionRate}</p> <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.conversionRate}%</h3> </div> <div className="p-2 bg-amber-50 rounded-lg text-amber-600"><LayoutDashboard size={20} /></div> </div> </Card> </div> <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <Card className="p-5 border border-slate-200"> <div className="flex items-center justify-between"> <div> <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.investment}</p> <h3 className="text-lg font-bold text-slate-800 mt-1">{globalStats.totalCost.toLocaleString()} {t.mad}</h3> </div> <div className="p-2 bg-slate-100 rounded-lg text-slate-500"><Wallet size={18} /></div> </div> </Card> <Card className="p-5 border border-slate-200"> <div className="flex items-center justify-between"> <div> <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.potentialProfit}</p> <h3 className="text-lg font-bold text-slate-800 mt-1">{globalStats.potentialProfit.toLocaleString()} {t.mad}</h3> </div> <div className="p-2 bg-indigo-50 rounded-lg text-indigo-500"><Percent size={18} /></div> </div> </Card> </div> <div className="grid grid-cols-1 lg:grid-cols-2 gap-6"> <Card className="p-6 border border-slate-200 min-h-[350px]"> <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2"> <BarChart3 size={16} className="text-primary-500" /> {t.revenueTrend} </h3> <div className="h-[250px] w-full text-xs"> <ResponsiveContainer width="100%" height="100%"> <BarChart data={analyticsData.barData}> <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" /> <XAxis dataKey="date" stroke="#94a3b8" /> <YAxis stroke="#94a3b8" /> <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} cursor={{ fill: '#f1f5f9' }} /> <Bar dataKey="amount" fill="#0ea5e9" radius={[4, 4, 0, 0]} /> </BarChart> </ResponsiveContainer> </div> </Card> <Card className="p-6 border border-slate-200 min-h-[350px]"> <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2"> <FolderKanban size={16} className="text-primary-500" /> {t.servicesDistribution} </h3> <div className="h-[250px] w-full text-xs flex justify-center"> <ResponsiveContainer width="100%" height="100%"> <PieChart> <Pie data={analyticsData.pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" > {analyticsData.pieData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} /> ))} </Pie> <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} /> <Legend verticalAlign="bottom" height={36} /> </PieChart> </ResponsiveContainer> </div> </Card> </div> </div>
+          <div className="animate-fade-in space-y-6">
+            <Card className="p-4 border border-slate-200">
+              <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
+                <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{t.timeRange}:</span>
+                  <div className="flex gap-1">
+                    {(['today', 'yesterday', 'last7Days', 'thisMonth', 'all'] as TimeRange[]).map(range => (
+                      <button
+                        key={range}
+                        onClick={() => setTimeRange(range)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeRange === range ? 'bg-primary-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+                      >
+                        {t.ranges[range]}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setTimeRange('custom')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${timeRange === 'custom' ? 'bg-primary-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      {t.ranges.custom}
+                    </button>
+                  </div>
+                </div>
+                {timeRange === 'custom' && (
+                  <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                    <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="bg-transparent text-xs outline-none" />
+                    <span className="text-slate-300">-</span>
+                    <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="bg-transparent text-xs outline-none" />
+                  </div>
+                )}
+                <Button variant="secondary" size="sm" onClick={handleExportCSV} className="w-full lg:w-auto">
+                  <FileSpreadsheet size={16} className={language === 'ar' ? 'ml-2' : 'mr-2'} />
+                  {t.exportToExcel}
+                </Button>
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="p-5 border border-slate-200">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.revenue}</p>
+                    <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.totalRevenue.toLocaleString()} {t.mad}</h3>
+                  </div>
+                  <div className="p-2 bg-green-50 rounded-lg text-green-600"><DollarSign size={20} /></div>
+                </div>
+              </Card>
+              <Card className="p-5 border border-slate-200">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.netProfit}</p>
+                    <h3 className={`text-xl font-bold mt-1 ${globalStats.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {globalStats.netProfit >= 0 ? '+' : ''}{globalStats.netProfit.toLocaleString()} {t.mad}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600"><TrendingUp size={20} /></div>
+                </div>
+              </Card>
+              <Card className="p-5 border border-slate-200">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.leads}</p>
+                    <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.leads}</h3>
+                  </div>
+                  <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><Users size={20} /></div>
+                </div>
+              </Card>
+              <Card className="p-5 border border-slate-200">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.conversionRate}</p>
+                    <h3 className="text-xl font-bold text-slate-800 mt-1">{analyticsData.conversionRate}%</h3>
+                  </div>
+                  <div className="p-2 bg-amber-50 rounded-lg text-amber-600"><LayoutDashboard size={20} /></div>
+                </div>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="p-5 border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.investment}</p>
+                    <h3 className="text-lg font-bold text-slate-800 mt-1">{globalStats.totalCost.toLocaleString()} {t.mad}</h3>
+                  </div>
+                  <div className="p-2 bg-slate-100 rounded-lg text-slate-500"><Wallet size={18} /></div>
+                </div>
+              </Card>
+              <Card className="p-5 border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.potentialProfit}</p>
+                    <h3 className="text-lg font-bold text-slate-800 mt-1">{globalStats.potentialProfit.toLocaleString()} {t.mad}</h3>
+                  </div>
+                  <div className="p-2 bg-indigo-50 rounded-lg text-indigo-500"><Percent size={18} /></div>
+                </div>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="p-6 border border-slate-200 min-h-[350px]">
+                <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2">
+                  <BarChart3 size={16} className="text-primary-500" /> {t.revenueTrend}
+                </h3>
+                <div className="h-[250px] w-full text-xs">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analyticsData.barData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="date" stroke="#94a3b8" />
+                      <YAxis stroke="#94a3b8" />
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} cursor={{ fill: '#f1f5f9' }} />
+                      <Bar dataKey="amount" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+              <Card className="p-6 border border-slate-200 min-h-[350px]">
+                <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2">
+                  <FolderKanban size={16} className="text-primary-500" /> {t.servicesDistribution}
+                </h3>
+                <div className="h-[250px] w-full text-xs flex justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={analyticsData.pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" >
+                        {analyticsData.pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Legend verticalAlign="bottom" height={36} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+          </div>
         )}
 
         {currentView === 'dashboard' && !activeProjectId && (
@@ -457,7 +593,7 @@ const App = () => {
                 {searchTerm ? (
                     <div className="space-y-8"> {globalSearchResults.length > 0 && ( <div className="space-y-4"> <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"> <Users size={16} /> {language === 'ar' ? 'العملاء' : 'Clients'} ({globalSearchResults.length}) </h3> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {globalSearchResults.map(({ client, projectId, projectName }) => ( <div key={client.id} onClick={() => { setActiveProjectId(projectId); setSearchTerm(client.clientName); }} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-primary-200 cursor-pointer transition-all group" > <div className="flex items-center gap-3"> <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getAvatarColor(client.clientName)}`}> {client.clientName.charAt(0).toUpperCase()} </div> <div> <h4 className="font-bold text-slate-800 group-hover:text-primary-600 transition-colors">{client.clientName}</h4> <p className="text-xs text-slate-500 flex items-center gap-1"> <FolderKanban size={10} /> {projectName} </p> </div> </div> <div className="mt-3 flex items-center justify-between"> <StatusBadge status={client.status} lang={language} /> <ServiceBadge type={client.serviceType} lang={language} /> </div> </div> ))} </div> </div> )} <div className="space-y-4"> {filteredProjects.length > 0 && ( <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"> <FolderKanban size={16} /> {language === 'ar' ? 'المشاريع' : 'Projects'} ({filteredProjects.length}) </h3> )} {filteredProjects.length > 0 ? ( <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"> {filteredProjects.map(project => renderProjectCard(project))} </div> ) : ( globalSearchResults.length === 0 && ( <div className="text-center py-12 text-slate-400"> <p>{language === 'ar' ? 'لا توجد نتائج مطابقة.' : 'No results found.'}</p> </div> ) )} </div> </div>
                 ) : (
-                    <div> {filteredProjects.length === 0 ? ( <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-center"> <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4"> <FolderPlus size={32} className="text-slate-300" /> </div> <h3 className="text-lg font-bold text-slate-800">{t.noProjectsFound}</h3> <p className="text-slate-400 text-sm mt-1 mb-6 max-w-md">{language === 'ar' ? 'ابدأ بإنشاء مشروع جديد لتنظيم عملائك ومهامك.' : 'Get started by creating a new project to organize your clients and tasks.'}</p> <Button onClick={() => setIsProjectModalOpen(true)}> <Plus size={18} className={language === 'ar' ? 'ml-2' : 'mr-2'} /> {t.createProject} </Button> </div> ) : projectViewMode === 'grid' ? ( <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in"> {filteredProjects.map(project => renderProjectCard(project))} </div> ) : ( <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in"> <div className="overflow-x-auto"> <table className="w-full text-left border-collapse"> <thead> <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-400 text-[11px] font-bold uppercase tracking-wider"> <th className="px-6 py-4">{t.projectName}</th> <th className="px-6 py-4">{t.projectCreated}</th> <th className="px-6 py-4 text-center">{t.totalClients}</th> <th className="px-6 py-4">{t.expenses}</th> <th className="px-6 py-4">{t.potentialProfit}</th> <th className="px-6 py-4">{t.roi}</th> <th className="px-6 py-4 text-right">{t.actions}</th> </tr> </thead> <tbody className="divide-y divide-slate-50"> {filteredProjects.map((project) => { 
+                    <div> {filteredProjects.length === 0 ? ( <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-center"> <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4"> <FolderPlus size={32} className="text-slate-300" /> </div> <h3 className="text-lg font-bold text-slate-800">{t.noProjectsFound}</h3> <p className="text-slate-400 text-sm mt-1 mb-6 max-w-md">{language === 'ar' ? 'ابدأ بإنشاء مشروع جديد لتنظيم عملائك ومهامك.' : 'Get started by creating a new project to organize your clients and tasks.'}</p> <Button onClick={() => setIsProjectModalOpen(true)}> <Plus size={18} className={language === 'ar' ? 'ml-2' : 'mr-2'} /> {t.createProject} </Button> </div> ) : projectViewMode === 'grid' ? ( <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in"> {filteredProjects.map(project => renderProjectCard(project))} </div> ) : ( <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in"> <div className="overflow-x-auto"> <table className="w-full text-left border-collapse"> <thead> <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-400 text-[11px] font-bold uppercase tracking-wider"> <th className="px-6 py-4">{t.projectName}</th> <th className="px-6 py-4">{t.projectCreated}</th> <th className="px-6 py-4 text-center">{t.totalClients}</th> <th className="px-6 py-4 text-center">{t.activeDelivered}</th> <th className="px-6 py-4">{t.expenses}</th> <th className="px-6 py-4">{t.potentialProfit}</th> <th className="px-6 py-4">{t.roi}</th> <th className="px-6 py-4 text-right">{t.actions}</th> </tr> </thead> <tbody className="divide-y divide-slate-50"> {filteredProjects.map((project) => { 
   const totalPotentialRevenue = (project.clients || []).reduce((acc, c) => {
     const isActive = c.status !== SaleStatus.ClosedLost && c.status !== SaleStatus.Scammer;
     const clientPotential = (c.items || []).reduce((sum, item) => {
@@ -470,7 +606,8 @@ const App = () => {
   const expenses = project.cost || 0; 
   const potentialProfit = totalPotentialRevenue - expenses; 
   const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(0) : '∞'; 
-  return ( <tr key={project.id} onClick={() => { setActiveProjectId(project.id); setSearchTerm(''); }} className="group hover:bg-slate-50/80 cursor-pointer transition-colors" > <td className="px-6 py-4"> <div className="flex items-center gap-3"> <div className="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors"> <FolderKanban size={18} /> </div> <span className="font-bold text-slate-800">{project.name}</span> </div> </td> <td className="px-6 py-4 text-sm text-slate-500"> {new Date(project.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')} </td> <td className="px-6 py-4 text-center"> <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold"> {project.clients.length} </span> </td> <td className="px-6 py-4 text-sm font-medium text-slate-600"> {expenses.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">MAD</span> </td> <td className="px-6 py-4"> <span className={`text-sm font-bold ${potentialProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}> {potentialProfit >= 0 ? '+' : ''}{potentialProfit.toLocaleString()} <span className="text-[10px] font-normal opacity-60">MAD</span> </span> </td> <td className="px-6 py-4"> <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${roi === '∞' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}> {roi}% ROI </span> </td> <td className="px-6 py-4 text-right"> <button onClick={(e) => handleDeleteProject(e, project.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100" > <Trash2 size={16} /> </button> </td> </tr> ); })} </tbody> </table> </div> </div> )} </div>
+  const activeDeliveredCount = (project.clients || []).filter(c => c.status === SaleStatus.InProgress || c.status === SaleStatus.Delivered).length;
+  return ( <tr key={project.id} onClick={() => { setActiveProjectId(project.id); setSearchTerm(''); }} className="group hover:bg-slate-50/80 cursor-pointer transition-colors" > <td className="px-6 py-4"> <div className="flex items-center gap-3"> <div className="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors"> <FolderKanban size={18} /> </div> <span className="font-bold text-slate-800">{project.name}</span> </div> </td> <td className="px-6 py-4 text-sm text-slate-500"> {new Date(project.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')} </td> <td className="px-6 py-4 text-center"> <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold"> {project.clients.length} </span> </td> <td className="px-6 py-4 text-center"> <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-md text-xs font-bold"> {activeDeliveredCount} </span> </td> <td className="px-6 py-4 text-sm font-medium text-slate-600"> {expenses.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">MAD</span> </td> <td className="px-6 py-4"> <span className={`text-sm font-bold ${potentialProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}> {potentialProfit >= 0 ? '+' : ''}{potentialProfit.toLocaleString()} <span className="text-[10px] font-normal opacity-60">MAD</span> </span> </td> <td className="px-6 py-4"> <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${roi === '∞' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}> {roi}% ROI </span> </td> <td className="px-6 py-4 text-right"> <button onClick={(e) => handleDeleteProject(e, project.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100" > <Trash2 size={16} /> </button> </td> </tr> ); })} </tbody> </table> </div> </div> )} </div>
                 )}
             </div>
         )}
