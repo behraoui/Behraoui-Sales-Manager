@@ -282,7 +282,23 @@ const App = () => {
 
   const globalStats = useMemo(() => {
     let totalRevenue = 0; let potentialRevenue = 0; let activeClients = 0; let leads = 0; let scammers = 0; let totalCost = 0;
-    projects.forEach(project => { totalCost += (project.cost || 0); (project.clients || []).forEach(client => { (client.items || []).forEach(item => { if(item.isPaid) totalRevenue += (client.price || 0); if (client.status !== SaleStatus.ClosedLost && client.status !== SaleStatus.Scammer) { potentialRevenue += (client.price || 0); } }); if (client.status === SaleStatus.InProgress) activeClients++; if (client.status === SaleStatus.Lead) leads++; if (client.status === SaleStatus.Scammer) scammers++; }); });
+    projects.forEach(project => { 
+      totalCost += (project.cost || 0); 
+      (project.clients || []).forEach(client => { 
+        const isActive = client.status !== SaleStatus.ClosedLost && client.status !== SaleStatus.Scammer;
+        (client.items || []).forEach(item => { 
+          if (item.isPaid) {
+            totalRevenue += (client.price || 0);
+            potentialRevenue += (client.price || 0);
+          } else if (isActive) {
+            potentialRevenue += (client.price || 0);
+          }
+        }); 
+        if (client.status === SaleStatus.InProgress) activeClients++; 
+        if (client.status === SaleStatus.Lead) leads++; 
+        if (client.status === SaleStatus.Scammer) scammers++; 
+      }); 
+    });
     const netProfit = totalRevenue - totalCost; const potentialProfit = potentialRevenue - totalCost;
     return { totalRevenue, potentialRevenue, activeClients, leads, scammers, totalCost, netProfit, potentialProfit };
   }, [projects]);
@@ -351,12 +367,41 @@ const App = () => {
   };
 
   const renderProjectCard = (project: Project) => {
-    const totalPotentialRevenue = (project.clients || []).reduce((acc, c) => acc + (c.price * (c.items || []).length), 0);
+    const totalPotentialRevenue = (project.clients || []).reduce((acc, c) => {
+      const isActive = c.status !== SaleStatus.ClosedLost && c.status !== SaleStatus.Scammer;
+      const clientPotential = (c.items || []).reduce((sum, item) => {
+        if (item.isPaid) return sum + (c.price || 0);
+        if (isActive) return sum + (c.price || 0);
+        return sum;
+      }, 0);
+      return acc + clientPotential;
+    }, 0);
     const expenses = project.cost || 0; const potentialProfit = totalPotentialRevenue - expenses; const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(0) : '∞'; const clientCount = (project.clients || []).length;
     return ( <div key={project.id} onClick={() => { setActiveProjectId(project.id); setSearchTerm(''); }} className="group bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-primary-200 transition-all relative overflow-hidden flex flex-col justify-between animate-fade-in" > <div> <div className="flex justify-between items-start mb-4"> <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors"> <FolderKanban size={24} /> </div> <button onClick={(e) => handleDeleteProject(e, project.id)} className="text-slate-300 hover:text-red-500 transition-colors p-1" > <Trash2 size={16} /> </button> </div> <h3 className="font-bold text-slate-800 text-lg mb-1 truncate">{project.name}</h3> <p className="text-xs text-slate-400 mb-4">{new Date(project.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')}</p> </div> <div className="space-y-3"> <div className="flex gap-2"> <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1`}> <TrendingUp size={10} /> {roi === '∞' ? '∞' : `${roi}%`} ROI </span> <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-100"> +{potentialProfit.toLocaleString()} </span> </div> <div className="flex items-center justify-between text-sm border-t border-slate-50 pt-3"> <div className="flex items-center gap-1.5 text-slate-600"> <Users size={14} /> <span>{clientCount}</span> </div> <div className="font-bold text-slate-700 flex flex-col items-end"> <span className="text-[10px] text-slate-400 font-normal uppercase">{t.potentialProfit}</span> </div> </div> </div> </div> );
   };
 
-  const projectStats = useMemo(() => { if (!activeProject) return null; const clients = activeProject.clients || []; const totalPotentialRevenue = clients.reduce((acc, c) => acc + (c.price * (c.items || []).length), 0); const collectedRevenue = clients.reduce((acc, c) => { const paidItems = (c.items || []).filter(i => i.isPaid).length; return acc + (c.price * paidItems); }, 0); const expenses = activeProject.cost || 0; const netProfit = collectedRevenue - expenses; const potentialProfit = totalPotentialRevenue - expenses; const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(1) : '∞'; return { totalPotentialRevenue, collectedRevenue, expenses, netProfit, potentialProfit, roi }; }, [activeProject]);
+  const projectStats = useMemo(() => { 
+    if (!activeProject) return null; 
+    const clients = activeProject.clients || []; 
+    const totalPotentialRevenue = clients.reduce((acc, c) => {
+      const isActive = c.status !== SaleStatus.ClosedLost && c.status !== SaleStatus.Scammer;
+      const clientPotential = (c.items || []).reduce((sum, item) => {
+        if (item.isPaid) return sum + (c.price || 0);
+        if (isActive) return sum + (c.price || 0);
+        return sum;
+      }, 0);
+      return acc + clientPotential;
+    }, 0);
+    const collectedRevenue = clients.reduce((acc, c) => { 
+      const paidItems = (c.items || []).filter(i => i.isPaid).length; 
+      return acc + (c.price * paidItems); 
+    }, 0); 
+    const expenses = activeProject.cost || 0; 
+    const netProfit = collectedRevenue - expenses; 
+    const potentialProfit = totalPotentialRevenue - expenses; 
+    const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(1) : '∞'; 
+    return { totalPotentialRevenue, collectedRevenue, expenses, netProfit, potentialProfit, roi }; 
+  }, [activeProject]);
 
   if (isLoading) { return ( <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4"> <Loader2 className="w-12 h-12 text-primary-600 animate-spin" /> <p className="text-slate-500 font-medium animate-pulse">{t.welcomeBack}...</p> </div> ); }
   if (!currentUser) { return <LoginPage onLogin={handleLogin} onSignup={handleSignup} users={users} lang={language} />; }
@@ -412,7 +457,20 @@ const App = () => {
                 {searchTerm ? (
                     <div className="space-y-8"> {globalSearchResults.length > 0 && ( <div className="space-y-4"> <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"> <Users size={16} /> {language === 'ar' ? 'العملاء' : 'Clients'} ({globalSearchResults.length}) </h3> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {globalSearchResults.map(({ client, projectId, projectName }) => ( <div key={client.id} onClick={() => { setActiveProjectId(projectId); setSearchTerm(client.clientName); }} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-primary-200 cursor-pointer transition-all group" > <div className="flex items-center gap-3"> <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getAvatarColor(client.clientName)}`}> {client.clientName.charAt(0).toUpperCase()} </div> <div> <h4 className="font-bold text-slate-800 group-hover:text-primary-600 transition-colors">{client.clientName}</h4> <p className="text-xs text-slate-500 flex items-center gap-1"> <FolderKanban size={10} /> {projectName} </p> </div> </div> <div className="mt-3 flex items-center justify-between"> <StatusBadge status={client.status} lang={language} /> <ServiceBadge type={client.serviceType} lang={language} /> </div> </div> ))} </div> </div> )} <div className="space-y-4"> {filteredProjects.length > 0 && ( <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"> <FolderKanban size={16} /> {language === 'ar' ? 'المشاريع' : 'Projects'} ({filteredProjects.length}) </h3> )} {filteredProjects.length > 0 ? ( <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"> {filteredProjects.map(project => renderProjectCard(project))} </div> ) : ( globalSearchResults.length === 0 && ( <div className="text-center py-12 text-slate-400"> <p>{language === 'ar' ? 'لا توجد نتائج مطابقة.' : 'No results found.'}</p> </div> ) )} </div> </div>
                 ) : (
-                    <div> {filteredProjects.length === 0 ? ( <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-center"> <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4"> <FolderPlus size={32} className="text-slate-300" /> </div> <h3 className="text-lg font-bold text-slate-800">{t.noProjectsFound}</h3> <p className="text-slate-400 text-sm mt-1 mb-6 max-w-md">{language === 'ar' ? 'ابدأ بإنشاء مشروع جديد لتنظيم عملائك ومهامك.' : 'Get started by creating a new project to organize your clients and tasks.'}</p> <Button onClick={() => setIsProjectModalOpen(true)}> <Plus size={18} className={language === 'ar' ? 'ml-2' : 'mr-2'} /> {t.createProject} </Button> </div> ) : projectViewMode === 'grid' ? ( <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in"> {filteredProjects.map(project => renderProjectCard(project))} </div> ) : ( <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in"> <div className="overflow-x-auto"> <table className="w-full text-left border-collapse"> <thead> <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-400 text-[11px] font-bold uppercase tracking-wider"> <th className="px-6 py-4">{t.projectName}</th> <th className="px-6 py-4">{t.projectCreated}</th> <th className="px-6 py-4 text-center">{t.totalClients}</th> <th className="px-6 py-4">{t.expenses}</th> <th className="px-6 py-4">{t.potentialProfit}</th> <th className="px-6 py-4">{t.roi}</th> <th className="px-6 py-4 text-right">{t.actions}</th> </tr> </thead> <tbody className="divide-y divide-slate-50"> {filteredProjects.map((project) => { const totalPotentialRevenue = (project.clients || []).reduce((acc, c) => acc + (c.price * (c.items || []).length), 0); const expenses = project.cost || 0; const potentialProfit = totalPotentialRevenue - expenses; const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(0) : '∞'; return ( <tr key={project.id} onClick={() => { setActiveProjectId(project.id); setSearchTerm(''); }} className="group hover:bg-slate-50/80 cursor-pointer transition-colors" > <td className="px-6 py-4"> <div className="flex items-center gap-3"> <div className="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors"> <FolderKanban size={18} /> </div> <span className="font-bold text-slate-800">{project.name}</span> </div> </td> <td className="px-6 py-4 text-sm text-slate-500"> {new Date(project.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')} </td> <td className="px-6 py-4 text-center"> <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold"> {project.clients.length} </span> </td> <td className="px-6 py-4 text-sm font-medium text-slate-600"> {expenses.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">MAD</span> </td> <td className="px-6 py-4"> <span className={`text-sm font-bold ${potentialProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}> {potentialProfit >= 0 ? '+' : ''}{potentialProfit.toLocaleString()} <span className="text-[10px] font-normal opacity-60">MAD</span> </span> </td> <td className="px-6 py-4"> <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${roi === '∞' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}> {roi}% ROI </span> </td> <td className="px-6 py-4 text-right"> <button onClick={(e) => handleDeleteProject(e, project.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100" > <Trash2 size={16} /> </button> </td> </tr> ); })} </tbody> </table> </div> </div> )} </div>
+                    <div> {filteredProjects.length === 0 ? ( <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-center"> <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4"> <FolderPlus size={32} className="text-slate-300" /> </div> <h3 className="text-lg font-bold text-slate-800">{t.noProjectsFound}</h3> <p className="text-slate-400 text-sm mt-1 mb-6 max-w-md">{language === 'ar' ? 'ابدأ بإنشاء مشروع جديد لتنظيم عملائك ومهامك.' : 'Get started by creating a new project to organize your clients and tasks.'}</p> <Button onClick={() => setIsProjectModalOpen(true)}> <Plus size={18} className={language === 'ar' ? 'ml-2' : 'mr-2'} /> {t.createProject} </Button> </div> ) : projectViewMode === 'grid' ? ( <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in"> {filteredProjects.map(project => renderProjectCard(project))} </div> ) : ( <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in"> <div className="overflow-x-auto"> <table className="w-full text-left border-collapse"> <thead> <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-400 text-[11px] font-bold uppercase tracking-wider"> <th className="px-6 py-4">{t.projectName}</th> <th className="px-6 py-4">{t.projectCreated}</th> <th className="px-6 py-4 text-center">{t.totalClients}</th> <th className="px-6 py-4">{t.expenses}</th> <th className="px-6 py-4">{t.potentialProfit}</th> <th className="px-6 py-4">{t.roi}</th> <th className="px-6 py-4 text-right">{t.actions}</th> </tr> </thead> <tbody className="divide-y divide-slate-50"> {filteredProjects.map((project) => { 
+  const totalPotentialRevenue = (project.clients || []).reduce((acc, c) => {
+    const isActive = c.status !== SaleStatus.ClosedLost && c.status !== SaleStatus.Scammer;
+    const clientPotential = (c.items || []).reduce((sum, item) => {
+      if (item.isPaid) return sum + (c.price || 0);
+      if (isActive) return sum + (c.price || 0);
+      return sum;
+    }, 0);
+    return acc + clientPotential;
+  }, 0);
+  const expenses = project.cost || 0; 
+  const potentialProfit = totalPotentialRevenue - expenses; 
+  const roi = expenses > 0 ? ((potentialProfit / expenses) * 100).toFixed(0) : '∞'; 
+  return ( <tr key={project.id} onClick={() => { setActiveProjectId(project.id); setSearchTerm(''); }} className="group hover:bg-slate-50/80 cursor-pointer transition-colors" > <td className="px-6 py-4"> <div className="flex items-center gap-3"> <div className="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors"> <FolderKanban size={18} /> </div> <span className="font-bold text-slate-800">{project.name}</span> </div> </td> <td className="px-6 py-4 text-sm text-slate-500"> {new Date(project.createdAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : 'en-US')} </td> <td className="px-6 py-4 text-center"> <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold"> {project.clients.length} </span> </td> <td className="px-6 py-4 text-sm font-medium text-slate-600"> {expenses.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">MAD</span> </td> <td className="px-6 py-4"> <span className={`text-sm font-bold ${potentialProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}> {potentialProfit >= 0 ? '+' : ''}{potentialProfit.toLocaleString()} <span className="text-[10px] font-normal opacity-60">MAD</span> </span> </td> <td className="px-6 py-4"> <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${roi === '∞' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}> {roi}% ROI </span> </td> <td className="px-6 py-4 text-right"> <button onClick={(e) => handleDeleteProject(e, project.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100" > <Trash2 size={16} /> </button> </td> </tr> ); })} </tbody> </table> </div> </div> )} </div>
                 )}
             </div>
         )}
