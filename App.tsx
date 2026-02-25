@@ -296,7 +296,16 @@ const App = () => {
 
   const filteredClients = useMemo(() => {
     if (!activeProject) return [];
-    const result = (activeProject.clients || []).filter(client => { const matchesSearch = (client.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()); const matchesStatus = statusFilter === 'All' || client.status === statusFilter; const paidCount = (client.items || []).filter(i => i.isPaid).length; const totalCount = (client.items || []).length; let matchesPayment = paymentFilter === 'All' || (paymentFilter === 'Fully Paid' && paidCount === totalCount && totalCount > 0) || (paymentFilter === 'Partially Paid' && paidCount > 0 && paidCount < totalCount) || (paymentFilter === 'Unpaid' && paidCount === 0); const isFullyPaid = totalCount > 0 && paidCount === totalCount; const matchesViewMode = clientViewMode === 'active' ? !isFullyPaid : isFullyPaid; return matchesSearch && matchesStatus && matchesPayment && matchesViewMode; });
+    const result = (activeProject.clients || []).filter(client => { 
+      const matchesSearch = (client.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) || (client.phoneNumber || '').includes(searchTerm);
+      const matchesStatus = statusFilter === 'All' || client.status === statusFilter; 
+      const paidCount = (client.items || []).filter(i => i.isPaid).length; 
+      const totalCount = (client.items || []).length; 
+      let matchesPayment = paymentFilter === 'All' || (paymentFilter === 'Fully Paid' && paidCount === totalCount && totalCount > 0) || (paymentFilter === 'Partially Paid' && paidCount > 0 && paidCount < totalCount) || (paymentFilter === 'Unpaid' && paidCount === 0); 
+      const isFullyPaid = totalCount > 0 && paidCount === totalCount; 
+      const matchesViewMode = clientViewMode === 'active' ? !isFullyPaid : isFullyPaid; 
+      return matchesSearch && matchesStatus && matchesPayment && matchesViewMode; 
+    });
     return result.sort((a, b) => { if (a.hasClientModifications && !b.hasClientModifications) return -1; if (!a.hasClientModifications && b.hasClientModifications) return 1; if (sortOrder === 'paymentStatus') { const getScore = (client: Sale) => { const total = (client.items || []).length; if (total === 0) return 0; const paid = (client.items || []).filter(i => i.isPaid).length; if (paid === 0) return 1; if (paid < total) return 2; return 3; }; const diff = getScore(a) - getScore(b); if (diff !== 0) return diff; } return new Date(b.leadDate || 0).getTime() - new Date(a.leadDate || 0).getTime(); });
   }, [activeProject, searchTerm, statusFilter, paymentFilter, clientViewMode, sortOrder]);
 
