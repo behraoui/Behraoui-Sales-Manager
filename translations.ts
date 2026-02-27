@@ -125,6 +125,7 @@ export const translations = {
     editProjectSettings: 'Project Settings',
     update: 'Update',
     activeClients: 'Active Clients',
+    deliveredClients: 'Delivered Clients',
     paidHistory: 'Paid History',
     viewModes: {
       grid: 'Grid View',
@@ -367,6 +368,7 @@ export const translations = {
     editProjectSettings: 'إعدادات المشروع',
     update: 'تحديث',
     activeClients: 'العملاء النشطون',
+    deliveredClients: 'الطلبات المسلمة',
     paidHistory: 'سجل المدفوعات',
     viewModes: {
       grid: 'عرض المربعات',
