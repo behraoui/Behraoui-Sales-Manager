@@ -2,7 +2,7 @@
 import React from 'react';
 import { SaleStatus, ServiceType } from '../types';
 import { translations } from '../translations';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, UserCheck } from 'lucide-react';
 
 // --- Card ---
 export const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -51,6 +51,16 @@ export const ModificationBadge: React.FC<{ lang?: 'en' | 'ar' }> = ({ lang = 'en
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-700 border border-orange-200 animate-pulse">
        <AlertTriangle size={10} />
        {t.clientModification}
+    </span>
+  );
+};
+
+export const ReturningCustomerBadge: React.FC<{ lang?: 'en' | 'ar' }> = ({ lang = 'en' }) => {
+  const t = translations[lang];
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200">
+       <UserCheck size={10} />
+       {t.returningCustomer}
     </span>
   );
 };

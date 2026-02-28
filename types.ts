@@ -104,6 +104,7 @@ export interface Sale {
   assignedWorkerIds?: string[]; // IDs of users assigned to this sale
   teamInstructions?: string; // Specific instructions for the team
   hasClientModifications?: boolean; // Flag for new client modifications
+  isReturningCustomer?: boolean; // Flag for repeat customers
 }
 
 export interface Project {

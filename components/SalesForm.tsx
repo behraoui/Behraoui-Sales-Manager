@@ -4,7 +4,7 @@ import { Sale, SaleStatus, ServiceType, SaleItem, Reminder, ItemStatus, User, Ta
 import { Button, Input, Select } from './UIComponents';
 import { translations } from '../translations';
 import { generateCreativeScript } from '../services/geminiService';
-import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users, Sparkles, Upload, FileAudio, FileText, Image as ImageIcon, AlertTriangle, Calculator, FileCheck, Info, DollarSign } from 'lucide-react';
+import { X, Layers, CheckCircle2, Circle, Trash2, PlusCircle, Clock, Loader2, CheckCircle, Users, Sparkles, Upload, FileAudio, FileText, Image as ImageIcon, AlertTriangle, Calculator, FileCheck, Info, DollarSign, UserCheck } from 'lucide-react';
 
 interface SalesFormProps {
   initialData?: Sale | null;
@@ -37,7 +37,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     reminders: [],
     assignedWorkerIds: [],
     teamInstructions: '',
-    hasClientModifications: false
+    hasClientModifications: false,
+    isReturningCustomer: false
   });
 
   useEffect(() => {
@@ -58,7 +59,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         sentDate: initialData.sentDate ? initialData.sentDate.split('T')[0] : '',
         assignedWorkerIds: initialData.assignedWorkerIds || [],
         teamInstructions: initialData.teamInstructions || '',
-        hasClientModifications: initialData.hasClientModifications || false
+        hasClientModifications: initialData.hasClientModifications || false,
+        isReturningCustomer: initialData.isReturningCustomer || false
       });
     } else {
       setBasePrice(0);
@@ -75,7 +77,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         reminders: [],
         assignedWorkerIds: [],
         teamInstructions: '',
-        hasClientModifications: false
+        hasClientModifications: false,
+        isReturningCustomer: false
       });
     }
   }, [initialData, isOpen]);
@@ -261,7 +264,8 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       reminders: formData.reminders || [],
       assignedWorkerIds: formData.assignedWorkerIds || [],
       teamInstructions: formData.teamInstructions || '',
-      hasClientModifications: formData.hasClientModifications
+      hasClientModifications: formData.hasClientModifications,
+      isReturningCustomer: formData.isReturningCustomer
     });
     onClose();
   };
@@ -326,6 +330,25 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
                         <div className="flex items-center gap-2 text-sm font-bold text-slate-700 select-none">
                             <AlertTriangle size={16} className={formData.hasClientModifications ? 'text-orange-500' : 'text-slate-400'} />
                             {t.markAsModification}
+                        </div>
+                    </label>
+                </div>
+
+                {/* Returning Customer Toggle */}
+                <div className="pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all hover:bg-slate-50 bg-white border-slate-200">
+                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${formData.isReturningCustomer ? 'bg-blue-500 border-blue-500' : 'bg-white border-slate-300'}`}>
+                            {formData.isReturningCustomer && <CheckCircle2 size={14} className="text-white" />}
+                        </div>
+                        <input 
+                            type="checkbox" 
+                            className="hidden" 
+                            checked={formData.isReturningCustomer} 
+                            onChange={(e) => setFormData({...formData, isReturningCustomer: e.target.checked})} 
+                        />
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700 select-none">
+                            <UserCheck size={16} className={formData.isReturningCustomer ? 'text-blue-500' : 'text-slate-400'} />
+                            {t.markAsReturning}
                         </div>
                     </label>
                 </div>
