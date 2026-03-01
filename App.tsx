@@ -362,7 +362,21 @@ const App = () => {
         const content = e.target?.result as string; const rawData = JSON.parse(content);
         if (!rawData || typeof rawData !== 'object') { throw new Error("Invalid backup format"); }
         
-        const safeProjects = Array.isArray(rawData.projects) ? rawData.projects.map((p: any) => ({ ...p, clients: Array.isArray(p.clients) ? p.clients.map((c: any) => ({ ...c, items: Array.isArray(c.items) ? c.items : [], reminders: Array.isArray(c.reminders) ? c.reminders : [], leadDate: c.leadDate || new Date().toISOString(), clientName: c.clientName || 'Unknown Client', status: c.status || 'Lead', serviceType: c.serviceType || 'Video Ads' })) : [] })) : [];
+        const safeProjects = Array.isArray(rawData.projects) ? rawData.projects.map((p: any) => ({ 
+          ...p, 
+          cost: Number(p.cost) || 0,
+          clients: Array.isArray(p.clients) ? p.clients.map((c: any) => ({ 
+            ...c, 
+            price: Number(c.price) || 0,
+            quantity: Number(c.quantity) || 1,
+            items: Array.isArray(c.items) && c.items.length > 0 ? c.items : [{ name: '', isPaid: false, status: 'Pending', type: 'General Task', description: '', attachments: [], deliverables: [] }],
+            reminders: Array.isArray(c.reminders) ? c.reminders : [], 
+            leadDate: c.leadDate || new Date().toISOString(), 
+            clientName: c.clientName || 'Unknown Client', 
+            status: c.status || 'Lead', 
+            serviceType: c.serviceType || 'Video Ads' 
+          })) : [] 
+        })) : [];
         if (safeProjects.length > 0) { setProjects(safeProjects); for (const p of safeProjects) { await api.createProject(p); if (p.clients && p.clients.length > 0) { for (const c of p.clients) { await api.saveSale(p.id, c); } } } }
         if (Array.isArray(rawData.users)) setUsers(rawData.users);
         if (Array.isArray(rawData.globalNotifications)) setGlobalNotifications(rawData.globalNotifications);

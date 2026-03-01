@@ -86,13 +86,14 @@ export const api = {
           phoneNumber: s.phone_number,
           serviceType: s.service_type as ServiceType,
           status: s.status as SaleStatus,
-          price: s.price,
-          quantity: s.quantity,
+          price: Number(s.price) || 0,
+          quantity: Number(s.quantity) || 1,
           leadDate: s.lead_date,
           sentDate: s.sent_date,
           notes: s.notes,
           teamInstructions: s.team_instructions,
           hasClientModifications: s.has_client_modifications,
+          isReturningCustomer: s.is_returning_customer,
           items: sItems,
           assignedWorkerIds: sWorkerIds,
           reminders: sReminders
@@ -190,12 +191,13 @@ export const api = {
       phone_number: sale.phoneNumber,
       service_type: sale.serviceType,
       status: sale.status,
-      price: sale.price,
-      quantity: sale.quantity,
+      price: Number(sale.price) || 0,
+      quantity: Number(sale.quantity) || 1,
       lead_date: sale.leadDate,
       sent_date: sale.sentDate,
       team_instructions: sale.teamInstructions,
       has_client_modifications: sale.hasClientModifications,
+      is_returning_customer: sale.isReturningCustomer,
     });
     if (saleError) return console.error('Error saving sale:', JSON.stringify(saleError, null, 2));
 

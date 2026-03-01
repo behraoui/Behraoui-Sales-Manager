@@ -30,7 +30,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     status: SaleStatus.Lead,
     price: 0,
     quantity: 1,
-    items: [{ name: '', isPaid: false, status: 'Pending', type: TaskType.General, description: '', attachments: [], deliverables: [] }],
+    items: [{ name: '', isPaid: false, status: 'Pending' as ItemStatus, type: TaskType.General, description: '', attachments: [], deliverables: [] }],
     clientName: '',
     phoneNumber: '',
     leadDate: new Date().toISOString().split('T')[0],
@@ -45,16 +45,32 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
     if (initialData) {
       setBasePrice(initialData.price); // Assume stored price is the base if editing (or user can adjust)
       setDiscount(0); // Reset discount on edit to avoid double applying
-      setFormData({
-        ...initialData,
-        items: initialData.items.map(i => ({ 
-            ...i, 
-            status: i.status || 'Pending',
+      let items: SaleItem[] = (initialData.items && initialData.items.length > 0) 
+        ? initialData.items.map(i => ({ 
+            name: i.name,
+            isPaid: i.isPaid,
+            status: (i.status as ItemStatus) || 'Pending',
             type: i.type || TaskType.General,
             description: i.description || '',
             attachments: i.attachments || [],
-            deliverables: i.deliverables || []
-        })),
+            deliverables: i.deliverables || [],
+            rejectionNote: i.rejectionNote
+        }))
+        : [{ name: '', isPaid: false, status: 'Pending' as ItemStatus, type: TaskType.General, description: '', attachments: [], deliverables: [] }];
+      
+      // Ensure items length matches quantity
+      const qty = initialData.quantity || 1;
+      if (items.length < qty) {
+          for(let i=items.length; i<qty; i++) {
+              items.push({ name: '', isPaid: false, status: 'Pending' as ItemStatus, type: TaskType.General, description: '', attachments: [], deliverables: [] });
+          }
+      } else if (items.length > qty && qty > 0) {
+          items = items.slice(0, qty);
+      }
+
+      setFormData({
+        ...initialData,
+        items,
         leadDate: initialData.leadDate.split('T')[0],
         sentDate: initialData.sentDate ? initialData.sentDate.split('T')[0] : '',
         assignedWorkerIds: initialData.assignedWorkerIds || [],
@@ -70,7 +86,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
         status: SaleStatus.Lead,
         price: 0,
         quantity: 1,
-        items: [{ name: '', isPaid: false, status: 'Pending', type: TaskType.General, description: '', attachments: [], deliverables: [] }],
+        items: [{ name: '', isPaid: false, status: 'Pending' as ItemStatus, type: TaskType.General, description: '', attachments: [], deliverables: [] }],
         clientName: '',
         phoneNumber: '',
         leadDate: new Date().toISOString().split('T')[0],
@@ -95,7 +111,7 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
       const items = [...(prev.items || [])];
       if (qty > items.length) {
           for(let i=items.length; i<qty; i++) {
-              items.push({ name: '', isPaid: false, status: 'Pending', type: TaskType.General, description: '', attachments: [], deliverables: [] });
+              items.push({ name: '', isPaid: false, status: 'Pending' as ItemStatus, type: TaskType.General, description: '', attachments: [], deliverables: [] });
           }
       } else if (qty < items.length) {
           items.length = qty;
@@ -250,13 +266,17 @@ const SalesForm: React.FC<SalesFormProps> = ({ initialData, isOpen, onClose, onS
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.clientName) return;
+    
+    // Calculate final price directly to avoid race conditions with useEffect
+    const finalUnitPrice = basePrice * (1 - discount / 100);
+    
     onSave({
       id: initialData?.id || crypto.randomUUID(),
       clientName: formData.clientName || '',
       phoneNumber: formData.phoneNumber || '',
       serviceType: formData.serviceType as ServiceType,
       status: formData.status as SaleStatus,
-      price: Number(formData.price), // This is the calculated Final Unit Price
+      price: finalUnitPrice, // Use calculated value directly
       quantity: Number(formData.quantity) || 1,
       items: formData.items || [],
       leadDate: formData.leadDate || new Date().toISOString(),
